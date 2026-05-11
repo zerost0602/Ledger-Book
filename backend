@@ -14,9 +14,6 @@ function getSheet(name) {
       sheet.appendRow(['id', 'date', 'debits', 'credits', 'memo']);
     } else if (name === 'Settings') {
       sheet.appendRow(['key', 'value']);
-    } else if (name === 'Budgets') {
-      // Budgets(예산) 시트가 없을 경우 헤더 생성 로직 추가
-      sheet.appendRow(['id', 'yearMonth', 'account', 'content', 'amount']);
     }
   }
   return sheet;
@@ -25,11 +22,9 @@ function getSheet(name) {
 function getAllData() {
   const settingsSheet = getSheet('Settings');
   const transSheet = getSheet('Transactions');
-  const budgetSheet = getSheet('Budgets'); // 예산 시트 불러오기 추가
   
   const settingsRaw = settingsSheet.getDataRange().getValues();
   const transRaw = transSheet.getDataRange().getValues();
-  const budgetRaw = budgetSheet.getDataRange().getValues(); // 예산 데이터
   
   let initialSetup = { debits: [{ account: '현금', amount: 0 }], credits: [] };
   let accounts = {
@@ -61,49 +56,9 @@ function getAllData() {
     }
   }
 
-  // 예산 데이터 파싱 로직 추가
-  const budgets = [];
-  if (budgetRaw.length > 1) {
-    for (let i = 1; i < budgetRaw.length; i++) {
-      budgets.push({
-        id: String(budgetRaw[i][0]),
-        yearMonth: String(budgetRaw[i][1]),
-        account: String(budgetRaw[i][2]),
-        content: String(budgetRaw[i][3]),
-        amount: Number(budgetRaw[i][4]) || 0
-      });
-    }
-  }
-
-  return { initialSetup, accounts, transactions, budgets };
+  return { initialSetup, accounts, transactions };
 }
 
-// 예산 데이터만 별도로 저장하는 함수
-function saveBudgetData(yearMonth, currentMonthBudgets) {
-  var lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(10000);
-    const sheet = getSheet('Budgets');
-    const data = sheet.getDataRange().getValues();
-    
-    let newData = [data[0]]; 
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][1] !== yearMonth) {
-        newData.push(data[i]);
-      }
-    }
-    
-    currentMonthBudgets.forEach(b => {
-      let newId = b.id || ('B-' + new Date().getTime() + Math.floor(Math.random() * 1000));
-      newData.push([newId, b.yearMonth, b.account, b.content, b.amount]);
-    });
-    
-    sheet.clear();
-    sheet.getRange(1, 1, newData.length, newData[0].length).setValues(newData);
-    
-    return true;
-  } catch(e) { return false; } finally { lock.releaseLock(); }
-}
 
 function saveTransaction(tx) {
   var lock = LockService.getScriptLock();
