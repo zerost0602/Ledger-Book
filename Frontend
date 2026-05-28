@@ -234,11 +234,17 @@ const AccountGridPicker = ({ accounts, onPick }) => {
   );
 };
 
-const MonthlyExpenseReport = ({ accounts, transactions, getAccountById, onEditTransaction }) => {
+const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, onEditTransaction }) => {
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [reportType, setReportType] = useState('expenses'); // 'expenses' | 'revenue'
   const [expandedAccounts, setExpandedAccounts] = useState({});
 
+  const revenueAccountIds = useMemo(() => accounts?.revenue?.map(r => r.id) || [], [accounts]);
   const expenseAccountIds = useMemo(() => accounts?.expenses?.map(e => e.id) || [], [accounts]);
+
+  const targetAccountIds = useMemo(() => {
+    return reportType === 'revenue' ? revenueAccountIds : expenseAccountIds;
+  }, [reportType, revenueAccountIds, expenseAccountIds]);
 
   const reportData = useMemo(() => {
     const monthlyTx = transactions.filter(t => {
@@ -247,25 +253,27 @@ const MonthlyExpenseReport = ({ accounts, transactions, getAccountById, onEditTr
     });
     
     let map = {};
-    let totalExp = 0;
+    let totalVal = 0;
 
-    expenseAccountIds.forEach(accId => { map[accId] = { total: 0, lines: [] }; });
+    targetAccountIds.forEach(accId => { map[accId] = { total: 0, lines: [] }; });
 
     monthlyTx.forEach(tx => {
       (tx.debits || []).forEach(d => {
-        if (expenseAccountIds.includes(d.accountId)) {
+        if (targetAccountIds.includes(d.accountId)) {
           if (!map[d.accountId]) map[d.accountId] = { total: 0, lines: [] };
-          map[d.accountId].lines.push({ txId: tx.id, date: tx.date, memo: tx.memo, amount: d.amount });
-          map[d.accountId].total += d.amount;
-          totalExp += d.amount;
+          const amt = reportType === 'revenue' ? -d.amount : d.amount;
+          map[d.accountId].lines.push({ txId: tx.id, date: tx.date, memo: tx.memo, amount: amt });
+          map[d.accountId].total += amt;
+          totalVal += amt;
         }
       });
       (tx.credits || []).forEach(c => {
-        if (expenseAccountIds.includes(c.accountId)) {
+        if (targetAccountIds.includes(c.accountId)) {
           if (!map[c.accountId]) map[c.accountId] = { total: 0, lines: [] };
-          map[c.accountId].lines.push({ txId: tx.id, date: tx.date, memo: tx.memo, amount: -c.amount });
-          map[c.accountId].total -= c.amount;
-          totalExp -= c.amount;
+          const amt = reportType === 'revenue' ? c.amount : -c.amount;
+          map[c.accountId].lines.push({ txId: tx.id, date: tx.date, memo: tx.memo, amount: amt });
+          map[c.accountId].total += amt;
+          totalVal += amt;
         }
       });
     });
@@ -278,8 +286,8 @@ const MonthlyExpenseReport = ({ accounts, transactions, getAccountById, onEditTr
       map[accId].lines.sort((a, b) => a.date.localeCompare(b.date));
     });
 
-    return { map, activeAccountIds, totalExp };
-  }, [transactions, targetMonth, expenseAccountIds]);
+    return { map, activeAccountIds, totalVal };
+  }, [transactions, targetMonth, targetAccountIds, reportType]);
 
   const toggleAccordion = (accountId) => {
     setExpandedAccounts(prev => ({ ...prev, [accountId]: !prev[accountId] }));
@@ -287,28 +295,50 @@ const MonthlyExpenseReport = ({ accounts, transactions, getAccountById, onEditTr
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300 pb-10">
-      <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+      <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
-          <i data-lucide="receipt" className="text-orange-500"></i> 월간지출명세
+          <i data-lucide={reportType === 'revenue' ? 'trending-up' : 'receipt'} className={reportType === 'revenue' ? 'text-emerald-500' : 'text-orange-500'}></i> 월간손익명세
         </h2>
-        <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-          <i data-lucide="calendar" className="w-4 h-4 text-slate-400"></i>
-          <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="bg-transparent font-bold text-slate-700 border-none outline-none text-sm cursor-pointer" />
+        <div className="flex items-center gap-3 self-end sm:self-auto">
+          <div className="bg-slate-100 p-1 rounded-xl flex gap-1 border border-slate-200">
+            <button 
+              onClick={() => { setReportType('revenue'); setExpandedAccounts({}); }} 
+              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${reportType === 'revenue' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+            >
+              수익
+            </button>
+            <button 
+              onClick={() => { setReportType('expenses'); setExpandedAccounts({}); }} 
+              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${reportType === 'expenses' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+            >
+              비용
+            </button>
+          </div>
+          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+            <i data-lucide="calendar" className="w-4 h-4 text-slate-400"></i>
+            <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="bg-transparent font-bold text-slate-700 border-none outline-none text-sm cursor-pointer" />
+          </div>
         </div>
       </div>
 
       <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-        <div className="flex justify-between items-center mb-4 border-b-2 border-orange-500 pb-2">
-          <h3 className="text-sm sm:text-base font-bold text-slate-700 uppercase tracking-widest">비용 계정과목별 상세내역</h3>
+        <div className="flex justify-between items-center mb-4 border-b-2 pb-2 transition-all duration-300" style={{ borderColor: reportType === 'revenue' ? '#10b981' : '#f97316' }}>
+          <h3 className="text-sm sm:text-base font-bold text-slate-700 uppercase tracking-widest">
+            {reportType === 'revenue' ? '수익 계정과목별 상세내역' : '비용 계정과목별 상세내역'}
+          </h3>
           <div className="text-right">
-            <span className="text-[10px] font-black text-slate-400 uppercase mr-2">총 지출액</span>
-            <span className="font-mono font-black text-orange-600 text-lg sm:text-xl">{reportData.totalExp.toLocaleString()}원</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase mr-2">
+              {reportType === 'revenue' ? '총 수익액' : '총 지출액'}
+            </span>
+            <span className={`font-mono font-black text-lg sm:text-xl transition-all duration-300 ${reportType === 'revenue' ? 'text-emerald-600' : 'text-orange-600'}`}>
+              {reportData.totalVal.toLocaleString()}원
+            </span>
           </div>
         </div>
 
         {reportData.activeAccountIds.length === 0 && (
           <p className="text-slate-400 text-sm text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-            해당 월에 발생한 지출 내역이 없습니다.
+            해당 월에 발생한 {reportType === 'revenue' ? '수익' : '지출'} 내역이 없습니다.
           </p>
         )}
 
@@ -322,7 +352,9 @@ const MonthlyExpenseReport = ({ accounts, transactions, getAccountById, onEditTr
               <div key={accountId} className="border border-slate-200 rounded-xl overflow-hidden transition-all shadow-sm">
                 <div onClick={() => toggleAccordion(accountId)} className="flex justify-between items-center p-3 sm:p-4 bg-slate-50 hover:bg-slate-100 cursor-pointer transition select-none">
                   <div className="font-extrabold text-slate-800 text-sm sm:text-base flex items-center gap-2">
-                    <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded-md text-[10px] font-black">비용</span>
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${reportType === 'revenue' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
+                      {reportType === 'revenue' ? '수익' : '비용'}
+                    </span>
                     {accountName}
                   </div>
                   <div className="flex items-center gap-4 text-sm">
@@ -436,11 +468,23 @@ const MonthlyCalendar = ({ accounts, transactions, getAccountById, onEditTransac
             const info = dailyData[dateStr] || { revenue: 0, expense: 0, txs: [] };
             
             return (
-              <div key={i} onClick={() => info.txs.length > 0 && setSelectedDate(dateStr)} className={`min-h-[80px] sm:min-h-[120px] p-1 sm:p-2 rounded-xl border transition-all flex flex-col ${info.txs.length > 0 ? 'cursor-pointer hover:border-indigo-400 hover:shadow-md bg-white border-slate-200' : 'bg-white border-slate-100'}`}>
-                <span className={`font-bold text-xs sm:text-sm mb-1 sm:mb-2 ml-1 ${i % 7 === 0 ? 'text-red-400' : i % 7 === 6 ? 'text-blue-400' : 'text-slate-600'}`}>{d}</span>
-                <div className="flex-1 space-y-1 mt-auto flex flex-col justify-end">
-                  {info.revenue > 0 && <div className="text-[9px] sm:text-xs font-mono font-black text-emerald-600 bg-emerald-50 px-0.5 sm:px-1 py-0.5 rounded text-right tracking-tighter break-all sm:truncate leading-[1.1] sm:leading-normal">+{info.revenue.toLocaleString()}</div>}
-                  {info.expense > 0 && <div className="text-[9px] sm:text-xs font-mono font-black text-red-500 bg-red-50 px-0.5 sm:px-1 py-0.5 rounded text-right tracking-tighter break-all sm:truncate leading-[1.1] sm:leading-normal">-{info.expense.toLocaleString()}</div>}
+              <div key={i} onClick={() => info.txs.length > 0 && setSelectedDate(dateStr)} className={`min-h-[75px] sm:min-h-[120px] p-0.5 sm:p-2 rounded-xl border transition-all flex flex-col min-w-0 ${info.txs.length > 0 ? 'cursor-pointer hover:border-indigo-400 hover:shadow-md bg-white border-slate-200' : 'bg-white border-slate-100'}`}>
+                <span className={`font-bold text-[10px] sm:text-sm mb-1 ml-1 ${i % 7 === 0 ? 'text-red-400' : i % 7 === 6 ? 'text-blue-400' : 'text-slate-600'}`}>{d}</span>
+                <div className="flex-1 space-y-0.5 sm:space-y-1 mt-auto flex flex-col justify-end min-w-0 overflow-visible">
+                  {info.revenue > 0 && (
+                    <div className="w-full text-right text-[10px] sm:text-xs font-mono font-black text-emerald-600 bg-emerald-50/60 sm:bg-emerald-50 px-0.5 rounded leading-[1.1] sm:leading-normal overflow-visible flex justify-end">
+                      <div className="origin-right scale-[0.7] sm:scale-100 whitespace-nowrap">
+                        +{info.revenue.toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                  {info.expense > 0 && (
+                    <div className="w-full text-right text-[10px] sm:text-xs font-mono font-black text-red-500 bg-red-50/60 sm:bg-red-50 px-0.5 rounded leading-[1.1] sm:leading-normal overflow-visible flex justify-end">
+                      <div className="origin-right scale-[0.7] sm:scale-100 whitespace-nowrap">
+                        -{info.expense.toLocaleString()}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -580,6 +624,8 @@ const App = () => {
   const retainedEarningsAcc = flatAccounts.find(a => a.name === '이익잉여금');
   const retainedEarningsId = retainedEarningsAcc ? retainedEarningsAcc.id : 'e1';
   const retainedEarningsBalance = Math.abs(accountBalances[retainedEarningsId] || 0);
+  const retainedEarningsRow = useMemo(() => (initialSetup.credits || []).find(c => String(c.accountId) === String(retainedEarningsId)), [initialSetup.credits, retainedEarningsId]);
+  const retainedEarningsAmount = retainedEarningsRow ? retainedEarningsRow.amount : 0;
   const currentEquity = calculatedInitialCapital + (accountBalances[retainedEarningsId] < 0 ? Math.abs(accountBalances[retainedEarningsId]) : -accountBalances[retainedEarningsId]) + unsettledNetIncome;
 
   const totalDebitSum = useMemo(() => (entryRows.debits || []).reduce((s, r) => s + Number(r.amount || 0), 0), [entryRows.debits]);
@@ -792,7 +838,7 @@ const App = () => {
             { id: 'BS', label: '재무상태표', icon: 'layout-dashboard' },
             { id: 'IS', label: '손익계산서', icon: 'pie-chart' },
             { id: 'GL', label: '총계정원장', icon: 'book-open' },
-            { id: 'EXPENSE_REPORT', label: '월간지출명세', icon: 'receipt' }
+            { id: 'EXPENSE_REPORT', label: '월간손익명세', icon: 'trending-up' }
           ].map(nav => (
             <button key={nav.id} onClick={() => { setCurrentView(nav.id); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${currentView === nav.id ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-100 text-slate-500'}`}>
               <i data-lucide={nav.icon} className="shrink-0"></i>
@@ -958,7 +1004,7 @@ const App = () => {
           )}
 
           {currentView === 'EXPENSE_REPORT' && (
-            <MonthlyExpenseReport accounts={accounts} transactions={transactions} getAccountById={getAccountById} onEditTransaction={(txId) => {
+            <MonthlyIncomeExpenseReport accounts={accounts} transactions={transactions} getAccountById={getAccountById} onEditTransaction={(txId) => {
               const tx = transactions.find(t => t.id === txId);
               if(tx) { setEditingTransaction(tx); setEntryRows({ date: tx.date, debits: tx.debits, credits: tx.credits, memo: tx.memo }); setIsEntryModalOpen(true); }
             }} />
@@ -1002,14 +1048,40 @@ const App = () => {
                     <div className="bg-emerald-600 text-white p-2 text-center text-[10px] font-black uppercase">Credit (대변 - 자본/부채)</div>
                     <div className="p-3 space-y-3">
                       <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex justify-between items-center"><span className="font-bold text-emerald-800 text-[11px] sm:text-sm font-black">자본금 (자동 계산)</span><span className="font-mono font-black text-emerald-600 text-xs sm:text-lg">{calculatedInitialCapital.toLocaleString()}원</span></div>
+                      <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex justify-between items-center gap-2">
+                        <span className="font-bold text-emerald-800 text-[11px] sm:text-sm font-black">이익잉여금</span>
+                        <input 
+                          type="number" 
+                          className="w-24 sm:w-32 p-2 rounded-lg bg-white text-right font-black border border-emerald-200 text-emerald-600 text-xs sm:text-sm outline-none font-mono" 
+                          value={retainedEarningsAmount || ''} 
+                          placeholder="0" 
+                          onChange={(e) => { 
+                            const val = Number(e.target.value); 
+                            setData(prev => { 
+                              const newCredits = [...(prev.initialSetup.credits || [])]; 
+                              const idx = newCredits.findIndex(c => String(c.accountId) === String(retainedEarningsId)); 
+                              if (idx >= 0) { 
+                                newCredits[idx] = { ...newCredits[idx], amount: val }; 
+                              } else { 
+                                newCredits.push({ accountId: retainedEarningsId, amount: val }); 
+                              } 
+                              return { ...prev, initialSetup: { ...prev.initialSetup, credits: newCredits } }; 
+                            }); 
+                            setIsDirty(true); 
+                          }} 
+                        />
+                      </div>
                       <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest pt-1 border-t mb-1">기초 부채 내역</div>
-                      {(initialSetup.credits || []).map((r, i) => (
-                        <div key={i} className="flex gap-2 items-center">
-                          <button onClick={() => setActivePicker({ type: 'setupCredits', index: i })} className="flex-1 p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate">{r.accountId ? getAccountById(r.accountId).name : '부채 선택'}</button>
-                          <input type="number" className="w-20 sm:w-28 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-red-500 text-xs outline-none" value={r.amount || ''} onChange={(e) => { const val = Number(e.target.value); setData(prev => { const n = [...prev.initialSetup.credits]; n[i] = { ...n[i], amount: val }; return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} />
-                          <button onClick={()=>{ setData(prev => { const n = [...prev.initialSetup.credits]; n.splice(i, 1); return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} className="text-slate-300 hover:text-red-500 p-1"><TrashIcon/></button>
-                        </div>
-                      ))}
+                      {(initialSetup.credits || []).filter(r => String(r.accountId) !== String(retainedEarningsId)).map((r, i) => {
+                        const originalIndex = initialSetup.credits.findIndex(c => c === r);
+                        return (
+                          <div key={originalIndex} className="flex gap-2 items-center">
+                            <button onClick={() => setActivePicker({ type: 'setupCredits', index: originalIndex })} className="flex-1 p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate">{r.accountId ? getAccountById(r.accountId).name : '부채 선택'}</button>
+                            <input type="number" className="w-20 sm:w-28 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-red-500 text-xs outline-none" value={r.amount || ''} onChange={(e) => { const val = Number(e.target.value); setData(prev => { const n = [...prev.initialSetup.credits]; n[originalIndex] = { ...n[originalIndex], amount: val }; return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} />
+                            <button onClick={()=>{ setData(prev => { const n = [...prev.initialSetup.credits]; n.splice(originalIndex, 1); return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} className="text-slate-300 hover:text-red-500 p-1"><TrashIcon/></button>
+                          </div>
+                        );
+                      })}
                       <button onClick={() => { setData(prev => ({ ...prev, initialSetup: { ...prev.initialSetup, credits: [...(prev.initialSetup.credits || []), { accountId: '', amount: 0 }] } })); setIsDirty(true); }} className="w-full p-2 mt-1 text-[10px] font-black text-red-400 border border-dashed border-red-100 rounded-lg hover:bg-red-50">+ 부채 추가</button>
                     </div>
                   </div>
