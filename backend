@@ -14,6 +14,8 @@ function getSheet(name) {
       sheet.appendRow(['id', 'date', 'debits', 'credits', 'memo']);
     } else if (name === 'Settings') {
       sheet.appendRow(['key', 'value']);
+    } else if (name === 'Budgets') {
+      sheet.appendRow(['month', 'data']);
     }
   }
   return sheet;
@@ -56,7 +58,10 @@ function getAllData() {
     }
   }
 
-  return { initialSetup, accounts, transactions };
+  // Check and automatically carry over budgets
+  const budgets = ensureBudgets();
+
+  return { initialSetup, accounts, transactions, budgets };
 }
 
 
@@ -134,4 +139,62 @@ function saveSettings(settingsData) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function saveBudget(month, budgetData) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const sheet = getSheet('Budgets');
+    const data = sheet.getDataRange().getValues();
+    let rowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(month)) {
+        rowIndex = i + 1;
+        break;
+      }
+    }
+    const rowData = [month, JSON.stringify(budgetData)];
+    if (rowIndex > -1) {
+      sheet.getRange(rowIndex, 1, 1, 2).setValues([rowData]);
+    } else {
+      sheet.appendRow(rowData);
+    }
+    return true;
+  } catch (e) {
+    return false;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function ensureBudgets() {
+  const sheet = getSheet('Budgets');
+  const rawData = sheet.getDataRange().getValues();
+  const budgets = {};
+  
+  if (rawData.length > 1) {
+    for (let i = 1; i < rawData.length; i++) {
+      try {
+        budgets[rawData[i][0]] = JSON.parse(rawData[i][1]);
+      } catch (e) {
+        console.error("Budget parse error", e);
+      }
+    }
+  }
+  
+  const now = new Date();
+  const currentMonthStr = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM');
+  
+  if (!budgets[currentMonthStr]) {
+    const keys = Object.keys(budgets).sort();
+    let latestBudget = {};
+    if (keys.length > 0) {
+      latestBudget = budgets[keys[keys.length - 1]];
+    }
+    saveBudget(currentMonthStr, latestBudget);
+    budgets[currentMonthStr] = latestBudget;
+  }
+  
+  return budgets;
 }
