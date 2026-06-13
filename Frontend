@@ -1755,7 +1755,15 @@ const App = () => {
                   ))}
                   <button onClick={() => setEntryRows(prev => ({...prev, debits: [...prev.debits, {accountId:'', amount:0}]}))} className="w-full p-2 mt-1 text-[10px] font-black text-indigo-500 border border-dashed border-indigo-200 rounded-lg hover:bg-indigo-50">+ 행 추가</button>
                 </div>
-                <div className="bg-slate-50 p-2.5 flex justify-between font-black border-t text-xs sm:text-base"><span className="text-[9px] uppercase text-slate-400">Total Debit</span><span className="font-mono text-indigo-600 font-black">{totalDebitSum.toLocaleString()}원</span></div>
+                <div className="bg-slate-50 p-2.5 flex justify-between items-center font-black border-t text-xs sm:text-base">
+                  <span className="text-[9px] uppercase text-slate-400">Total Debit</span>
+                  {totalCreditSum > totalDebitSum && (
+                    <span className="text-[10px] sm:text-xs text-red-500 font-black px-2 py-0.5 rounded-md bg-red-50 border border-red-100 animate-pulse">
+                      {(totalCreditSum - totalDebitSum).toLocaleString()}원 부족
+                    </span>
+                  )}
+                  <span className="font-mono text-indigo-600 font-black">{totalDebitSum.toLocaleString()}원</span>
+                </div>
               </div>
               <div className="bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden">
                 <div className="bg-red-500 text-white p-2 font-black text-center text-[10px] uppercase">Credit (대변)</div>
@@ -1769,13 +1777,25 @@ const App = () => {
                   ))}
                   <button onClick={() => setEntryRows(prev => ({...prev, credits: [...prev.credits, {accountId:'', amount:0}]}))} className="w-full p-2 mt-1 text-[10px] font-black text-red-500 border border-dashed border-red-200 rounded-lg hover:bg-red-50">+ 행 추가</button>
                 </div>
-                <div className="bg-slate-50 p-2.5 flex justify-between font-black border-t text-xs sm:text-base"><span className="text-[9px] uppercase text-slate-400">Total Credit</span><span className="font-mono text-red-500 font-black">{totalCreditSum.toLocaleString()}원</span></div>
+                <div className="bg-slate-50 p-2.5 flex justify-between items-center font-black border-t text-xs sm:text-base">
+                  <span className="text-[9px] uppercase text-slate-400">Total Credit</span>
+                  {totalDebitSum > totalCreditSum && (
+                    <span className="text-[10px] sm:text-xs text-red-500 font-black px-2 py-0.5 rounded-md bg-red-50 border border-red-100 animate-pulse">
+                      {(totalDebitSum - totalCreditSum).toLocaleString()}원 부족
+                    </span>
+                  )}
+                  <span className="font-mono text-red-500 font-black">{totalCreditSum.toLocaleString()}원</span>
+                </div>
               </div>
             </div>
             <div className="bg-slate-50 p-3 sm:p-4 rounded-2xl border flex flex-col gap-3 shadow-inner">
               <input type="text" className="w-full bg-white p-2.5 rounded-xl border border-slate-200 outline-none font-bold placeholder:text-slate-300 text-slate-700 text-xs sm:text-base" placeholder="거래 메모를 입력하세요 (예: 식비 결제)" value={entryRows.memo} onChange={(e) => setEntryRows({...entryRows, memo: e.target.value})} />
               <div className="flex items-center justify-between gap-4">
-                <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase shadow-sm ${totalDebitSum === totalCreditSum && totalDebitSum > 0 ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>{totalDebitSum === totalCreditSum && totalDebitSum > 0 ? '차대일치' : '불일치'}</span>
+                <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase shadow-sm ${totalDebitSum === totalCreditSum && totalDebitSum > 0 ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                  {totalDebitSum === totalCreditSum && totalDebitSum > 0 
+                    ? '차대일치' 
+                    : `불일치 (${Math.abs(totalDebitSum - totalCreditSum).toLocaleString()}원 부족)`}
+                </span>
                 <button onClick={handleSaveEntry} disabled={isSavingEntry || totalDebitSum !== totalCreditSum || totalDebitSum === 0} className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white px-6 py-3 rounded-xl font-black shadow-lg transition-all active:scale-95 text-xs sm:text-sm whitespace-nowrap">
                   {isSavingEntry ? (
                     <span className="flex items-center justify-center gap-2">
