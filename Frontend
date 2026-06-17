@@ -47,9 +47,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>DoubleBook - GAS 통합 가계부</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
 <style>
@@ -67,12 +64,16 @@
 <body class="bg-slate-50 text-slate-900 overflow-x-hidden font-sans">
 <div id="root"></div>
 
-<script type="text/babel">
-const { useState, useEffect, useMemo, useCallback } = React;
+<script type="module">
+import React, { useState, useEffect, useMemo, useCallback } from 'https://esm.sh/react@18.2.0';
+import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
+import htm from 'https://esm.sh/htm@3.1.1';
 
-const TrashIcon = () => (
+const html = htm.bind(React.createElement);
+
+const TrashIcon = () => html`
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-);
+`;
 
 // --- 공통 아토믹 컴포넌트 ---
 const Button = ({ children, variant = 'primary', className = '', ...props }) => {
@@ -83,36 +84,36 @@ const Button = ({ children, variant = 'primary', className = '', ...props }) => 
     danger: "bg-red-50 hover:bg-red-500 text-red-500 hover:text-white border border-red-100",
     ghost: "bg-transparent hover:bg-slate-100 text-slate-600 shadow-none"
   };
-  return <button className={`${base} ${variants[variant]} ${className}`} {...props}>{children}</button>;
+  return html`<button className="${base} ${variants[variant]} ${className}" ...${props}>${children}</button>`;
 };
 
-const Input = ({ className = '', ...props }) => (
-  <input className={`w-full p-2.5 rounded-xl border border-slate-200 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-sm font-bold text-slate-700 bg-white placeholder:text-slate-300 ${className}`} {...props} />
-);
+const Input = ({ className = '', ...props }) => html`
+  <input className="w-full p-2.5 rounded-xl border border-slate-200 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-sm font-bold text-slate-700 bg-white placeholder:text-slate-300 ${className}" ...${props} />
+`;
 
-const Card = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden ${className}`}>{children}</div>
-);
+const Card = ({ children, className = '' }) => html`
+  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden ${className}">${children}</div>
+`;
 
-const MoneyText = ({ amount, className = '', colorClass = 'text-slate-800' }) => (
-  <span className={`font-mono font-black ${colorClass} ${className}`}>{Number(amount || 0).toLocaleString()}원</span>
-);
+const MoneyText = ({ amount, className = '', colorClass = 'text-slate-800' }) => html`
+  <span className="font-mono font-black ${colorClass} ${className}">${Number(amount || 0).toLocaleString()}원</span>
+`;
 
 const Modal = ({ isOpen, onClose, title, children, maxWidth = "max-w-md", zIndex = "z-50" }) => {
   if (!isOpen) return null;
-  return (
-    <div className={`fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200`}>
-      <div className={`bg-white rounded-t-3xl sm:rounded-3xl w-full ${maxWidth} overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[95vh]`}>
+  return html`
+    <div className="fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full ${maxWidth} overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[95vh]">
         <div className="flex justify-between items-center p-4 sm:p-5 border-b bg-slate-50 shrink-0">
-          <h3 className="text-sm sm:text-lg font-bold text-slate-800">{title}</h3>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
+          <h3 className="text-sm sm:text-lg font-bold text-slate-800">${title}</h3>
+          <button onClick=${onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
-        <div className="p-4 sm:p-6 overflow-y-auto modal-scroll bg-white text-slate-800">{children}</div>
+        <div className="p-4 sm:p-6 overflow-y-auto modal-scroll bg-white text-slate-800">${children}</div>
       </div>
     </div>
-  );
+  `;
 };
 
 // --- Error Boundary ---
@@ -125,18 +126,18 @@ class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) { console.error("Error caught:", error, errorInfo); }
   render() {
     if (this.state.hasError) {
-      return (
+      return html`
         <div className="h-screen flex items-center justify-center bg-slate-50 p-6">
-          <Card className="max-w-md text-center p-6">
+          <${Card} className="max-w-md text-center p-6">
             <div className="text-red-500 mb-4 flex justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
             </div>
             <h2 className="text-lg font-bold text-slate-800">오류가 발생했습니다</h2>
-            <p className="text-sm mt-2 text-slate-500 mb-6">{this.state.error?.toString()}</p>
-            <Button onClick={() => window.location.reload()} className="mx-auto">새로고침</Button>
-          </Card>
+            <p className="text-sm mt-2 text-slate-500 mb-6">${this.state.error?.toString()}</p>
+            <${Button} onClick=${() => window.location.reload()} className="mx-auto">새로고침<//>
+          <//>
         </div>
-      );
+      `;
     }
     return this.props.children;
   }
@@ -367,23 +368,23 @@ const AccountGridPicker = ({ accounts, onPick, allowedCategories }) => {
   const categories = allowedCategories
     ? allCategories.filter(c => allowedCategories.includes(c.key))
     : allCategories;
-  return (
+  return html`
     <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 pb-10">
-      {categories.map(cat => (
-        <div key={cat.key}>
-          <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1">{cat.label}</h4>
+      ${categories.map(cat => html`
+        <div key=${cat.key}>
+          <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1">${cat.label}</h4>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {(accounts[cat.key] || []).filter(a => a.name !== '이익잉여금').map(a => (
-              <button key={a.id} onClick={() => onPick(a.id)} className={`p-3 rounded-xl border text-xs font-bold transition-all active:scale-95 hover:shadow-md ${cat.color}`}>{a.name}</button>
-            ))}
-            {cat.key === 'liabilities' && (
-              <button onClick={() => onPick('closing_temp')} className="p-3 rounded-xl border text-xs font-bold bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100 transition-colors">결산(임시)</button>
-            )}
+            ${(accounts[cat.key] || []).filter(a => a.name !== '이익잉여금').map(a => html`
+              <button key=${a.id} onClick=${() => onPick(a.id)} className="p-3 rounded-xl border text-xs font-bold transition-all active:scale-95 hover:shadow-md ${cat.color}">${a.name}</button>
+            `)}
+            ${cat.key === 'liabilities' && html`
+              <button onClick=${() => onPick('closing_temp')} className="p-3 rounded-xl border text-xs font-bold bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100 transition-colors">결산(임시)</button>
+            `}
           </div>
         </div>
-      ))}
+      `)}
     </div>
-  );
+  `;
 };
 
 const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, onEditTransaction }) => {
@@ -445,79 +446,79 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
     setExpandedAccounts(prev => ({ ...prev, [accountId]: !prev[accountId] }));
   };
 
-  return (
+  return html`
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300 pb-10">
       <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
-          <i data-lucide={reportType === 'revenue' ? 'trending-up' : 'receipt'} className={reportType === 'revenue' ? 'text-emerald-500' : 'text-orange-500'}></i> 월간손익명세
+          <i data-lucide=${reportType === 'revenue' ? 'trending-up' : 'receipt'} className=${reportType === 'revenue' ? 'text-emerald-500' : 'text-orange-500'}></i> 월간손익명세
         </h2>
         <div className="flex items-center gap-3 self-end sm:self-auto">
           <div className="bg-slate-100 p-1 rounded-xl flex gap-1 border border-slate-200">
             <button 
-              onClick={() => { setReportType('revenue'); setExpandedAccounts({}); }} 
-              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${reportType === 'revenue' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              onClick=${() => { setReportType('revenue'); setExpandedAccounts({}); }} 
+              className=${`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${reportType === 'revenue' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
             >
               수익
             </button>
             <button 
-              onClick={() => { setReportType('expenses'); setExpandedAccounts({}); }} 
-              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${reportType === 'expenses' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              onClick=${() => { setReportType('expenses'); setExpandedAccounts({}); }} 
+              className=${`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${reportType === 'expenses' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
             >
               비용
             </button>
           </div>
           <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
             <i data-lucide="calendar" className="w-4 h-4 text-slate-400"></i>
-            <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="bg-transparent font-bold text-slate-700 border-none outline-none text-sm cursor-pointer" />
+            <input type="month" value=${targetMonth} onChange=${(e) => setTargetMonth(e.target.value)} className="bg-transparent font-bold text-slate-700 border-none outline-none text-sm cursor-pointer" />
           </div>
         </div>
       </div>
 
       <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-        <div className="flex justify-between items-center mb-4 border-b-2 pb-2 transition-all duration-300" style={{ borderColor: reportType === 'revenue' ? '#10b981' : '#f97316' }}>
+        <div className="flex justify-between items-center mb-4 border-b-2 pb-2 transition-all duration-300" style=${{ borderColor: reportType === 'revenue' ? '#10b981' : '#f97316' }}>
           <h3 className="text-sm sm:text-base font-bold text-slate-700 uppercase tracking-widest">
-            {reportType === 'revenue' ? '수익 계정과목별 상세내역' : '비용 계정과목별 상세내역'}
+            ${reportType === 'revenue' ? '수익 계정과목별 상세내역' : '비용 계정과목별 상세내역'}
           </h3>
           <div className="text-right">
             <span className="text-[10px] font-black text-slate-400 uppercase mr-2">
-              {reportType === 'revenue' ? '총 수익액' : '총 지출액'}
+              ${reportType === 'revenue' ? '총 수익액' : '총 지출액'}
             </span>
-            <span className={`font-mono font-black text-lg sm:text-xl transition-all duration-300 ${reportType === 'revenue' ? 'text-emerald-600' : 'text-orange-600'}`}>
-              {reportData.totalVal.toLocaleString()}원
+            <span className=${`font-mono font-black text-lg sm:text-xl transition-all duration-300 ${reportType === 'revenue' ? 'text-emerald-600' : 'text-orange-600'}`}>
+              ${reportData.totalVal.toLocaleString()}원
             </span>
           </div>
         </div>
 
-        {reportData.activeAccountIds.length === 0 && (
+        ${reportData.activeAccountIds.length === 0 && html`
           <p className="text-slate-400 text-sm text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-            해당 월에 발생한 {reportType === 'revenue' ? '수익' : '지출'} 내역이 없습니다.
+            해당 월에 발생한 ${reportType === 'revenue' ? '수익' : '지출'} 내역이 없습니다.
           </p>
-        )}
+        `}
 
         <div className="space-y-3">
-          {reportData.activeAccountIds.map(accountId => {
+          ${reportData.activeAccountIds.map(accountId => {
             const isExpanded = !!expandedAccounts[accountId];
             const data = reportData.map[accountId];
             const accountName = getAccountById(accountId).name;
 
-            return (
-              <div key={accountId} className="border border-slate-200 rounded-xl overflow-hidden transition-all shadow-sm">
-                <div onClick={() => toggleAccordion(accountId)} className="flex justify-between items-center p-3 sm:p-4 bg-slate-50 hover:bg-slate-100 cursor-pointer transition select-none">
+            return html`
+              <div key=${accountId} className="border border-slate-200 rounded-xl overflow-hidden transition-all shadow-sm">
+                <div onClick=${() => toggleAccordion(accountId)} className="flex justify-between items-center p-3 sm:p-4 bg-slate-50 hover:bg-slate-100 cursor-pointer transition select-none">
                   <div className="font-extrabold text-slate-800 text-sm sm:text-base flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black ${reportType === 'revenue' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
-                      {reportType === 'revenue' ? '수익' : '비용'}
+                    <span className=${`px-2 py-0.5 rounded-md text-[10px] font-black ${reportType === 'revenue' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
+                      ${reportType === 'revenue' ? '수익' : '비용'}
                     </span>
-                    {accountName}
+                    ${accountName}
                   </div>
                   <div className="flex items-center gap-4 text-sm">
-                    <span className="font-mono font-black text-slate-800">{data.total.toLocaleString()}원</span>
+                    <span className="font-mono font-black text-slate-800">${data.total.toLocaleString()}원</span>
                     <div className="w-6 flex justify-end text-slate-400">
-                      {isExpanded ? <i data-lucide="chevron-up" className="w-4 h-4"></i> : <i data-lucide="chevron-down" className="w-4 h-4"></i>}
+                      ${isExpanded ? html`<i data-lucide="chevron-up" className="w-4 h-4"></i>` : html`<i data-lucide="chevron-down" className="w-4 h-4"></i>`}
                     </div>
                   </div>
                 </div>
 
-                {isExpanded && (
+                ${isExpanded && html`
                   <div className="border-t border-slate-200 bg-white animate-in slide-in-from-top-2 duration-200">
                     <div className="p-3">
                       <table className="w-full text-left text-xs sm:text-sm">
@@ -529,25 +530,25 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
-                          {data.lines.map((line, idx) => (
-                            <tr key={idx} onClick={() => line.txId && onEditTransaction && onEditTransaction(line.txId)} className={`transition ${line.txId && onEditTransaction ? 'cursor-pointer hover:bg-indigo-50 active:bg-indigo-100' : 'hover:bg-slate-50'}`}>
-                              <td className="py-2.5 px-3 text-slate-500 font-mono whitespace-nowrap">{line.date}</td>
-                              <td className="py-2.5 px-3 text-slate-700 font-bold">{line.memo || '내역 없음'}</td>
-                              <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-800">{line.amount.toLocaleString()}원</td>
+                          ${data.lines.map((line, idx) => html`
+                            <tr key=${idx} onClick=${() => line.txId && onEditTransaction && onEditTransaction(line.txId)} className=${`transition ${line.txId && onEditTransaction ? 'cursor-pointer hover:bg-indigo-50 active:bg-indigo-100' : 'hover:bg-slate-50'}`}>
+                              <td className="py-2.5 px-3 text-slate-500 font-mono whitespace-nowrap">${line.date}</td>
+                              <td className="py-2.5 px-3 text-slate-700 font-bold">${line.memo || '내역 없음'}</td>
+                              <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-800">${line.amount.toLocaleString()}원</td>
                             </tr>
-                          ))}
+                          `)}
                         </tbody>
                       </table>
                     </div>
                   </div>
-                )}
+                `}
               </div>
-            );
+            `;
           })}
         </div>
       </div>
     </div>
-  );
+  `;
 };
 
 const MonthlyCalendar = ({ accounts, transactions, getAccountById, onEditTransaction }) => {
@@ -594,77 +595,87 @@ const MonthlyCalendar = ({ accounts, transactions, getAccountById, onEditTransac
     setTimeout(() => { if (window.lucide) window.lucide.createIcons(); }, 100);
   }, [currentDate, selectedDate]);
 
-  return (
+  return html`
     <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 animate-in fade-in duration-300 pb-10">
       <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
         <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
           <i data-lucide="calendar-days" className="text-indigo-500"></i> 월간 캘린더
         </h2>
         <div className="flex items-center gap-4">
-          <button onClick={handlePrevMonth} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"><i data-lucide="chevron-left" className="w-5 h-5"></i></button>
-          <span className="font-black text-slate-700 w-24 text-center">{year}년 {month + 1}월</span>
-          <button onClick={handleNextMonth} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"><i data-lucide="chevron-right" className="w-5 h-5"></i></button>
+          <button onClick=${handlePrevMonth} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"><i data-lucide="chevron-left" className="w-5 h-5"></i></button>
+          <span className="font-black text-slate-700 w-24 text-center">${year}년 ${month + 1}월</span>
+          <button onClick=${handleNextMonth} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"><i data-lucide="chevron-right" className="w-5 h-5"></i></button>
         </div>
       </div>
 
       <div className="bg-white p-3 sm:p-5 rounded-2xl shadow-sm border border-slate-200">
         <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
-          {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
-            <div key={d} className={`text-center font-bold text-xs sm:text-sm py-2 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400'}`}>{d}</div>
-          ))}
+          ${['일', '월', '화', '수', '목', '금', '토'].map((d, i) => html`
+            <div key=${d} className=${`text-center font-bold text-xs sm:text-sm py-2 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400'}`}>${d}</div>
+          `)}
         </div>
         <div className="grid grid-cols-7 gap-1 sm:gap-2">
-          {days.map((d, i) => {
-            if (!d) return <div key={i} className="bg-slate-50/50 rounded-xl min-h-[80px] sm:min-h-[120px]"></div>;
+          ${days.map((d, i) => {
+            if (!d) return html`<div key=${i} className="bg-slate-50/50 rounded-xl min-h-[80px] sm:min-h-[120px]"></div>`;
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const info = dailyData[dateStr] || { revenue: 0, expense: 0, txs: [] };
             
-            return (
-              <div key={i} onClick={() => info.txs.length > 0 && setSelectedDate(dateStr)} className={`min-h-[75px] sm:min-h-[120px] p-0.5 sm:p-2 rounded-xl border transition-all flex flex-col min-w-0 ${info.txs.length > 0 ? 'cursor-pointer hover:border-indigo-400 hover:shadow-md bg-white border-slate-200' : 'bg-white border-slate-100'}`}>
-                <span className={`font-bold text-[10px] sm:text-sm mb-1 ml-1 ${i % 7 === 0 ? 'text-red-400' : i % 7 === 6 ? 'text-blue-400' : 'text-slate-600'}`}>{d}</span>
+            return html`
+              <div key=${i} onClick=${() => info.txs.length > 0 && setSelectedDate(dateStr)} className=${`min-h-[75px] sm:min-h-[120px] p-0.5 sm:p-2 rounded-xl border transition-all flex flex-col min-w-0 ${info.txs.length > 0 ? 'cursor-pointer hover:border-indigo-400 hover:shadow-md bg-white border-slate-200' : 'bg-white border-slate-100'}`}>
+                <span className=${`font-bold text-[10px] sm:text-sm mb-1 ml-1 ${i % 7 === 0 ? 'text-red-400' : i % 7 === 6 ? 'text-blue-400' : 'text-slate-600'}`}>${d}</span>
                 <div className="flex-1 space-y-0.5 sm:space-y-1 mt-auto flex flex-col justify-end min-w-0 overflow-visible">
-                  {info.revenue > 0 && (
+                  ${info.revenue > 0 && html`
                     <div className="w-full text-right text-[10px] sm:text-xs font-mono font-black text-emerald-600 bg-emerald-50/60 sm:bg-emerald-50 px-0.5 rounded leading-[1.1] sm:leading-normal overflow-visible flex justify-end">
                       <div className="origin-right scale-[0.7] sm:scale-100 whitespace-nowrap">
-                        +{info.revenue.toLocaleString()}
+                        +${info.revenue.toLocaleString()}
                       </div>
                     </div>
-                  )}
-                  {info.expense > 0 && (
+                  `}
+                  ${info.expense > 0 && html`
                     <div className="w-full text-right text-[10px] sm:text-xs font-mono font-black text-red-500 bg-red-50/60 sm:bg-red-50 px-0.5 rounded leading-[1.1] sm:leading-normal overflow-visible flex justify-end">
                       <div className="origin-right scale-[0.7] sm:scale-100 whitespace-nowrap">
-                        -{info.expense.toLocaleString()}
+                        -${info.expense.toLocaleString()}
                       </div>
                     </div>
-                  )}
+                  `}
                 </div>
               </div>
-            );
+            `;
           })}
         </div>
       </div>
 
-      <Modal isOpen={!!selectedDate} onClose={() => setSelectedDate(null)} title={`${selectedDate} 상세 내역`}>
+      <${Modal} isOpen=${!!selectedDate} onClose=${() => setSelectedDate(null)} title="${selectedDate} 상세 내역">
         <div className="space-y-3 modal-scroll max-h-[60vh] overflow-y-auto pr-2">
-          {selectedDate && dailyData[selectedDate] && dailyData[selectedDate].txs.map(tx => (
-            <div key={tx.id} onClick={() => { onEditTransaction(tx.id); setSelectedDate(null); }} className="p-3 border border-slate-100 bg-slate-50 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 transition-all cursor-pointer shadow-sm">
-              <div className="font-bold text-slate-700 mb-2">{tx.memo || '내역 없음'}</div>
+          ${selectedDate && dailyData[selectedDate] && dailyData[selectedDate].txs.map(tx => html`
+            <div key=${tx.id} onClick=${() => { onEditTransaction(tx.id); setSelectedDate(null); }} className="p-3 border border-slate-100 bg-slate-50 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 transition-all cursor-pointer shadow-sm">
+              <div className="font-bold text-slate-700 mb-2">${tx.memo || '내역 없음'}</div>
               <div className="grid grid-cols-2 gap-3 text-[11px] sm:text-xs bg-white p-2 rounded-lg border border-slate-100">
                 <div>
                   <div className="text-[9px] text-slate-400 uppercase font-black mb-1">차변 (Debit)</div>
-                  {tx.debits.map((d, idx) => <div key={idx} className="flex justify-between items-center py-0.5"><span className="text-indigo-600 font-medium truncate pr-1">{getAccountById(d.accountId)?.name}</span><MoneyText amount={d.amount} className="text-[10px] sm:text-xs" /></div>)}
+                  ${tx.debits.map((d, idx) => html`
+                    <div key=${idx} className="flex justify-between items-center py-0.5">
+                      <span className="text-indigo-600 font-medium truncate pr-1">${getAccountById(d.accountId)?.name}</span>
+                      <${MoneyText} amount=${d.amount} className="text-[10px] sm:text-xs" />
+                    </div>
+                  `)}
                 </div>
                 <div>
                   <div className="text-[9px] text-slate-400 uppercase font-black mb-1">대변 (Credit)</div>
-                  {tx.credits.map((c, idx) => <div key={idx} className="flex justify-between items-center py-0.5"><span className="text-red-500 font-medium truncate pr-1">{getAccountById(c.accountId)?.name}</span><MoneyText amount={c.amount} className="text-[10px] sm:text-xs" /></div>)}
+                  ${tx.credits.map((c, idx) => html`
+                    <div key=${idx} className="flex justify-between items-center py-0.5">
+                      <span className="text-red-500 font-medium truncate pr-1">${getAccountById(c.accountId)?.name}</span>
+                      <${MoneyText} amount=${c.amount} className="text-[10px] sm:text-xs" />
+                    </div>
+                  `)}
                 </div>
               </div>
             </div>
-          ))}
+          `)}
         </div>
-      </Modal>
+      <//>
     </div>
-  );
+  `;
 };
 
 // --- Monthly Budget Component ---
@@ -846,207 +857,193 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
     if (window.lucide) window.lucide.createIcons();
   }, [targetMonth, isEditModalOpen, editRows, activeBudgetPicker]);
 
-  return (
+  return html`
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300 pb-10 text-slate-800">
-      {/* Header */}
       <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
           <i data-lucide="piggy-bank" className="text-indigo-600"></i> 월별 예산 관리
         </h2>
         <div className="flex items-center gap-3 self-end sm:self-auto">
-          <Button variant="primary" onClick={openEditModal} className="text-xs font-bold py-1.5 px-3">
+          <${Button} variant="primary" onClick=${openEditModal} className="text-xs font-bold py-1.5 px-3">
             <i data-lucide="edit" className="w-4 h-4"></i> 예산 수정
-          </Button>
+          <//>
           <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 font-bold">
             <i data-lucide="calendar" className="w-4 h-4 text-slate-400"></i>
-            <input type="month" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="bg-transparent font-bold text-slate-700 border-none outline-none text-sm cursor-pointer" />
+            <input type="month" value=${targetMonth} onChange=${(e) => setTargetMonth(e.target.value)} className="bg-transparent font-bold text-slate-700 border-none outline-none text-sm cursor-pointer" />
           </div>
         </div>
       </div>
 
-      {/* Main Budget Card */}
       <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
         <div className="flex justify-between items-center mb-4 border-b pb-2">
           <h3 className="text-sm sm:text-base font-bold text-slate-700 uppercase tracking-widest">
-            {targetMonth} 예산 현황
+            ${targetMonth} 예산 현황
           </h3>
         </div>
 
-        {budgetDataList.budgeted.length === 0 && budgetDataList.other.budget === 0 && (
+        ${budgetDataList.budgeted.length === 0 && budgetDataList.other.budget === 0 && html`
           <div className="text-slate-400 text-sm text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
             <p className="mb-3 font-semibold">설정된 예산이 없습니다.</p>
-            <Button onClick={openEditModal} variant="secondary" className="mx-auto text-xs">예산 설정하기</Button>
+            <${Button} onClick=${openEditModal} variant="secondary" className="mx-auto text-xs">예산 설정하기<//>
           </div>
-        )}
+        `}
 
-        {(budgetDataList.budgeted.length > 0 || budgetDataList.other.budget > 0) && (
+        ${(budgetDataList.budgeted.length > 0 || budgetDataList.other.budget > 0) && html`
           <div className="space-y-4">
-            {/* Budget list */}
-            {budgetDataList.budgeted.map(item => {
+            ${budgetDataList.budgeted.map(item => {
               const spentPct = item.budget > 0 ? Math.min(100, Math.round((item.spent / item.budget) * 100)) : 0;
               const isOver = item.spent > item.budget;
-              return (
-                <div key={item.id} className="border border-slate-100 rounded-xl p-4 hover:shadow-md transition-shadow">
+              return html`
+                <div key=${item.id} className="border border-slate-100 rounded-xl p-4 hover:shadow-md transition-shadow">
                   <div className="flex justify-between items-center mb-2">
                     <div className="font-extrabold text-slate-800 text-sm sm:text-base flex items-center gap-2">
                       <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-indigo-50 text-indigo-600">
                         지정예산
                       </span>
-                      {item.name}
+                      ${item.name}
                     </div>
                     <div className="text-right text-xs">
-                      <span className="font-mono text-slate-400">사용률 {spentPct}%</span>
+                      <span className="font-mono text-slate-400">사용률 ${spentPct}%</span>
                     </div>
                   </div>
-                  
-                  {/* Progress Bar */}
                   <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-3">
                     <div 
-                      className={`h-full rounded-full transition-all duration-500 ${isOver ? 'bg-red-500' : 'bg-indigo-600'}`}
-                      style={{ width: `${spentPct}%` }}
+                      className=${`h-full rounded-full transition-all duration-500 ${isOver ? 'bg-red-500' : 'bg-indigo-600'}`}
+                      style=${{ width: `${spentPct}%` }}
                     ></div>
                   </div>
-
                   <div className="grid grid-cols-3 gap-2 text-center text-xs">
                     <div className="bg-slate-50 p-2 rounded-lg">
                       <div className="text-[9px] font-black text-slate-400 uppercase">예산액</div>
-                      <div className="font-mono font-bold text-slate-700">{item.budget.toLocaleString()}원</div>
+                      <div className="font-mono font-bold text-slate-700">${item.budget.toLocaleString()}원</div>
                     </div>
                     <div className="bg-slate-50 p-2 rounded-lg">
                       <div className="text-[9px] font-black text-slate-400 uppercase">사용액</div>
-                      <div className="font-mono font-bold text-slate-700">{item.spent.toLocaleString()}원</div>
+                      <div className="font-mono font-bold text-slate-700">${item.spent.toLocaleString()}원</div>
                     </div>
-                    <div className={`p-2 rounded-lg font-bold ${item.remaining >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                      <div className="text-[9px] font-black uppercase">{item.remaining >= 0 ? '남은예산' : '예산초과'}</div>
-                      <div className="font-mono font-black">{Math.abs(item.remaining).toLocaleString()}원</div>
+                    <div className=${`p-2 rounded-lg font-bold ${item.remaining >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                      <div className="text-[9px] font-black uppercase">${item.remaining >= 0 ? '남은예산' : '예산초과'}</div>
+                      <div className="font-mono font-black">${Math.abs(item.remaining).toLocaleString()}원</div>
                     </div>
                   </div>
                 </div>
-              );
+              `;
             })}
 
-            {/* Other Expenses */}
             <div className="border border-slate-100 rounded-xl p-4 hover:shadow-md transition-shadow bg-slate-50/50">
               <div className="flex justify-between items-center mb-2">
-                <div onClick={() => setIsOtherExpanded(!isOtherExpanded)} className="font-extrabold text-slate-800 text-sm sm:text-base flex items-center gap-2 cursor-pointer select-none hover:text-slate-600">
+                <div onClick=${() => setIsOtherExpanded(!isOtherExpanded)} className="font-extrabold text-slate-800 text-sm sm:text-base flex items-center gap-2 cursor-pointer select-none hover:text-slate-600">
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-200 text-slate-600">
                     공통예산
                   </span>
                   기타비용
-                  <i data-lucide={isOtherExpanded ? "chevron-up" : "chevron-down"} className="w-4 h-4 text-slate-400 inline"></i>
+                  <i data-lucide=${isOtherExpanded ? "chevron-up" : "chevron-down"} className="w-4 h-4 text-slate-400 inline"></i>
                 </div>
                 <div className="text-right text-xs">
                   <span className="font-mono text-slate-400">
-                    사용률 {budgetDataList.other.budget > 0 ? Math.round((budgetDataList.other.spent / budgetDataList.other.budget) * 100) : 0}%
+                    사용률 ${budgetDataList.other.budget > 0 ? Math.round((budgetDataList.other.spent / budgetDataList.other.budget) * 100) : 0}%
                   </span>
                 </div>
               </div>
-
-              {/* Progress Bar */}
               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-3">
                 <div 
-                  className={`h-full rounded-full transition-all duration-500 ${budgetDataList.other.spent > budgetDataList.other.budget ? 'bg-red-500' : 'bg-slate-500'}`}
-                  style={{ width: `${budgetDataList.other.budget > 0 ? Math.min(100, Math.round((budgetDataList.other.spent / budgetDataList.other.budget) * 100)) : 0}%` }}
+                  className=${`h-full rounded-full transition-all duration-500 ${budgetDataList.other.spent > budgetDataList.other.budget ? 'bg-red-500' : 'bg-slate-500'}`}
+                  style=${{ width: `${budgetDataList.other.budget > 0 ? Math.min(100, Math.round((budgetDataList.other.spent / budgetDataList.other.budget) * 100)) : 0}%` }}
                 ></div>
               </div>
-
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="bg-slate-100 p-2 rounded-lg">
                   <div className="text-[9px] font-black text-slate-400 uppercase">예산액</div>
-                  <div className="font-mono font-bold text-slate-700">{budgetDataList.other.budget.toLocaleString()}원</div>
+                  <div className="font-mono font-bold text-slate-700">${budgetDataList.other.budget.toLocaleString()}원</div>
                 </div>
                 <div className="bg-slate-100 p-2 rounded-lg">
                   <div className="text-[9px] font-black text-slate-400 uppercase">사용액</div>
-                  <div className="font-mono font-bold text-slate-700">{budgetDataList.other.spent.toLocaleString()}원</div>
+                  <div className="font-mono font-bold text-slate-700">${budgetDataList.other.spent.toLocaleString()}원</div>
                 </div>
-                <div className={`p-2 rounded-lg font-bold ${budgetDataList.other.remaining >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                  <div className="text-[9px] font-black uppercase">{budgetDataList.other.remaining >= 0 ? '남은예산' : '예산초과'}</div>
-                  <div className="font-mono font-black">{Math.abs(budgetDataList.other.remaining).toLocaleString()}원</div>
+                <div className=${`p-2 rounded-lg font-bold ${budgetDataList.other.remaining >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                  <div className="text-[9px] font-black uppercase">${budgetDataList.other.remaining >= 0 ? '남은예산' : '예산초과'}</div>
+                  <div className="font-mono font-black">${Math.abs(budgetDataList.other.remaining).toLocaleString()}원</div>
                 </div>
               </div>
 
-              {/* Unbudgeted breakdown */}
-              {isOtherExpanded && (
+              ${isOtherExpanded && html`
                 <div className="mt-4 pt-3 border-t border-slate-200 bg-white p-3 rounded-xl space-y-2 animate-in slide-in-from-top-2 duration-200">
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">예산 미배정 계정별 지출액</div>
-                  {budgetDataList.unbudgeted.length === 0 ? (
+                  ${budgetDataList.unbudgeted.length === 0 ? html`
                     <p className="text-xs text-slate-400 italic text-center py-2">지출 내역이 없습니다.</p>
-                  ) : (
+                  ` : html`
                     <div className="divide-y divide-slate-100">
-                      {budgetDataList.unbudgeted.map(item => (
-                        <div key={item.id} className="flex justify-between py-2 text-xs">
-                          <span className="text-slate-600 font-medium">{item.name}</span>
-                          <span className="font-mono font-bold text-slate-800">{item.spent.toLocaleString()}원</span>
+                      ${budgetDataList.unbudgeted.map(item => html`
+                        <div key=${item.id} className="flex justify-between py-2 text-xs">
+                          <span className="text-slate-600 font-medium">${item.name}</span>
+                          <span className="font-mono font-bold text-slate-800">${item.spent.toLocaleString()}원</span>
                         </div>
-                      ))}
+                      `)}
                     </div>
-                  )}
+                  `}
                 </div>
-              )}
+              `}
             </div>
 
-            {/* Total Budget Card */}
-            <div className={`p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center border shadow-inner ${totalRemaining >= 0 ? 'bg-indigo-50/50 border-indigo-100' : 'bg-red-50/50 border-red-100'}`}>
+            <div className=${`p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center border shadow-inner ${totalRemaining >= 0 ? 'bg-indigo-50/50 border-indigo-100' : 'bg-red-50/50 border-red-100'}`}>
               <div className="shrink-0 font-black mb-2 sm:mb-0 text-center sm:text-left">
                 <h4 className="font-black text-sm sm:text-base uppercase tracking-tighter text-slate-500">총 예산 대비 요약</h4>
-                <div className="text-[10px] text-slate-400 mt-0.5">총 예산 {totalBudget.toLocaleString()}원 | 총 지출 {totalSpent.toLocaleString()}원</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">총 예산 ${totalBudget.toLocaleString()}원 | 총 지출 ${totalSpent.toLocaleString()}원</div>
               </div>
               <div className="text-right">
                 <span className="text-[10px] font-black text-slate-400 mr-2">
-                  {totalRemaining >= 0 ? '총 남은예산' : '총 예산초과'}
+                  ${totalRemaining >= 0 ? '총 남은예산' : '총 예산초과'}
                 </span>
-                <span className={`font-mono text-xl sm:text-3xl font-black ${totalRemaining >= 0 ? 'text-indigo-600' : 'text-red-500'}`}>
-                  {Math.abs(totalRemaining).toLocaleString()}원
+                <span className=${`font-mono text-xl sm:text-3xl font-black ${totalRemaining >= 0 ? 'text-indigo-600' : 'text-red-500'}`}>
+                  ${Math.abs(totalRemaining).toLocaleString()}원
                 </span>
               </div>
             </div>
           </div>
-        )}
+        `}
       </div>
 
-      {/* Edit Budget Modal */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title={`${targetMonth} 예산 수정`} maxWidth="max-w-4xl" zIndex="z-[110]">
+      <${Modal} isOpen=${isEditModalOpen} onClose=${() => setIsEditModalOpen(false)} title="${targetMonth} 예산 수정" maxWidth="max-w-4xl" zIndex="z-[110]">
         <div className="space-y-4">
           <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100 mb-2 font-medium leading-relaxed">
             각 비용 계정과목의 한 달 예산을 설정하세요. 여기에 명시하지 않은 모든 비용 항목은 자동 계산되어 <strong>기타비용</strong>에 합산됩니다.
           </div>
 
           <div className="max-h-[50vh] overflow-y-auto modal-scroll pr-2 space-y-2 pb-2">
-            {editRows.map((row, idx) => (
-              <div key={idx} className="flex gap-2 items-center animate-in slide-in-from-left-2">
+            ${editRows.map((row, idx) => html`
+              <div key=${idx} className="flex gap-2 items-center animate-in slide-in-from-left-2">
                 <button
-                  onClick={() => setActiveBudgetPicker({ index: idx })}
+                  onClick=${() => setActiveBudgetPicker({ index: idx })}
                   className="flex-1 p-2.5 rounded-xl bg-slate-50 text-xs font-bold border border-slate-200 text-left truncate hover:bg-indigo-50 hover:border-indigo-200 transition-all text-slate-700"
                 >
-                  {getAccountName(row.accountId)}
+                  ${getAccountName(row.accountId)}
                 </button>
                 <div className="relative w-40 sm:w-48">
                   <input
                     type="number"
                     className="w-full p-2.5 pr-8 rounded-xl border border-slate-200 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-xs sm:text-sm font-bold text-slate-700 bg-white text-right font-mono"
                     placeholder="0"
-                    value={row.amount || ''}
-                    onChange={(e) => handleRowAmountChange(idx, e.target.value)}
+                    value=${row.amount || ''}
+                    onChange=${(e) => handleRowAmountChange(idx, e.target.value)}
                   />
                   <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">원</span>
                 </div>
                 <button
-                  onClick={() => handleRemoveRow(idx)}
+                  onClick=${() => handleRemoveRow(idx)}
                   className="text-slate-300 hover:text-red-500 p-2.5 transition-colors shrink-0"
                 >
-                  <TrashIcon />
+                  <${TrashIcon} />
                 </button>
               </div>
-            ))}
+            `)}
 
             <button
-              onClick={handleAddRow}
+              onClick=${handleAddRow}
               className="w-full p-3 text-xs font-bold text-indigo-600 border border-dashed border-indigo-200 rounded-xl hover:bg-indigo-50 transition-all flex items-center justify-center gap-2"
             >
               <i data-lucide="plus-circle" className="w-4 h-4"></i> 행 추가
             </button>
 
-            {/* Other Expenses Budget */}
             <div className="border-t border-slate-100 pt-3 mt-3">
               <div className="flex items-center gap-2 p-3 bg-indigo-50/40 border border-indigo-100/50 rounded-xl">
                 <span className="flex-1 font-black text-xs sm:text-sm text-indigo-700">기타비용 (예산 미지정 항목 공통 예산)</span>
@@ -1055,12 +1052,11 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
                     type="number"
                     className="w-full p-2.5 pr-8 rounded-xl border border-indigo-200 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-xs sm:text-sm font-black text-indigo-700 bg-white text-right font-mono"
                     placeholder="0"
-                    value={editOtherAmount || ''}
-                    onChange={(e) => setEditOtherAmount(Number(e.target.value) || 0)}
+                    value=${editOtherAmount || ''}
+                    onChange=${(e) => setEditOtherAmount(Number(e.target.value) || 0)}
                   />
                   <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-black text-indigo-400">원</span>
                 </div>
-                {/* Spacer to align with rows that have a delete button */}
                 <div className="w-11 shrink-0"></div>
               </div>
             </div>
@@ -1068,20 +1064,20 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
 
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
             <span className="font-extrabold text-sm text-slate-600">총 예산 합계</span>
-            <span className="font-mono font-black text-base sm:text-lg text-indigo-600">{editTotal.toLocaleString()}원</span>
+            <span className="font-mono font-black text-base sm:text-lg text-indigo-600">${editTotal.toLocaleString()}원</span>
           </div>
 
           <div className="flex gap-3 justify-end pt-3">
-            <Button variant="secondary" onClick={() => setIsEditModalOpen(false)}>취소</Button>
-            <Button variant="primary" onClick={handleSave}>저장</Button>
+            <${Button} variant="secondary" onClick=${() => setIsEditModalOpen(false)}>취소<//>
+            <${Button} variant="primary" onClick=${handleSave}>저장<//>
           </div>
         </div>
-      </Modal>
+      <//>
 
       {/* Account Picker Modal */}
-      <Modal isOpen={activeBudgetPicker !== null} onClose={() => setActiveBudgetPicker(null)} title="예산 설정 계정과목 선택" maxWidth="max-w-4xl" zIndex="z-[160]">
-        <AccountGridPicker accounts={accounts} onPick={handleBudgetAccountPick} allowedCategories={['expenses']} />
-      </Modal>
+      <${Modal} isOpen=${activeBudgetPicker !== null} onClose=${() => setActiveBudgetPicker(null)} title="예산 설정 계정과목 선택" maxWidth="max-w-4xl" zIndex="z-[160]">
+        <${AccountGridPicker} accounts=${accounts} onPick=${handleBudgetAccountPick} allowedCategories=${['expenses']} />
+      <//>
     </div>
   );
 };
@@ -1383,77 +1379,77 @@ const App = () => {
 
   if (error) throw new Error(error);
 
-  return (
+  return html`
     <div className="flex flex-col md:flex-row h-screen bg-slate-50 overflow-hidden text-slate-900">
-      {loading && <div className="loading-overlay"><div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div><p className="font-bold text-indigo-600 text-sm">데이터 동기화 중...</p></div>}
-      {statusMessage && <div className="fixed top-4 right-4 z-[300] p-4 rounded-2xl shadow-2xl border bg-emerald-50 border-emerald-200 text-emerald-800 font-bold text-sm">✓ {statusMessage.text}</div>}
+      ${loading && html`<div className="loading-overlay"><div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div><p className="font-bold text-indigo-600 text-sm">데이터 동기화 중...</p></div>`}
+      ${statusMessage && html`<div className="fixed top-4 right-4 z-[300] p-4 rounded-2xl shadow-2xl border bg-emerald-50 border-emerald-200 text-emerald-800 font-bold text-sm">✓ ${statusMessage.text}</div>`}
 
-      <Modal isOpen={confirmDialog !== null} onClose={() => setConfirmDialog(null)} title={confirmDialog?.title || '확인'} maxWidth="max-w-md" zIndex="z-[200]">
+      <${Modal} isOpen=${confirmDialog !== null} onClose=${() => setConfirmDialog(null)} title=${confirmDialog?.title || '확인'} maxWidth="max-w-md" zIndex="z-[200]">
         <div className="space-y-6 text-center">
-          <p className="font-medium text-slate-600 leading-relaxed text-sm">{confirmDialog?.message}</p>
+          <p className="font-medium text-slate-600 leading-relaxed text-sm">${confirmDialog?.message}</p>
           <div className="flex gap-3 justify-center pb-2">
-            <Button variant="secondary" onClick={() => setConfirmDialog(null)}>취소</Button>
-            <Button onClick={confirmDialog?.onConfirm}>확인</Button>
+            <${Button} variant="secondary" onClick=${() => setConfirmDialog(null)}>취소<//>
+            <${Button} onClick=${confirmDialog?.onConfirm}>확인<//>
           </div>
         </div>
-      </Modal>
+      <//>
 
-      <aside className={`sidebar-transition bg-white border-r border-slate-200 shrink-0 flex flex-col overflow-hidden fixed md:relative z-40 shadow-xl md:shadow-none h-full ${isSidebarOpen ? 'w-64' : 'w-0 md:w-20'}`}>
+      <aside className=${`sidebar-transition bg-white border-r border-slate-200 shrink-0 flex flex-col overflow-hidden fixed md:relative z-40 shadow-xl md:shadow-none h-full ${isSidebarOpen ? 'w-64' : 'w-0 md:w-20'}`}>
         <div className="p-6 flex items-center gap-3">
           <div className="bg-indigo-600 p-2 rounded-xl text-white shadow-lg shrink-0"><i data-lucide="wallet"></i></div>
-          {isSidebarOpen && <span className="font-bold text-xl animate-in fade-in">DoubleBook</span>}
+          ${isSidebarOpen && html`<span className="font-bold text-xl animate-in fade-in">DoubleBook</span>`}
         </div>
         <nav className="flex-1 px-3 space-y-1 mt-4">
-          {[
+          ${[
             { id: 'CALENDAR', label: '캘린더', icon: 'calendar-days' },
             { id: 'BS', label: '재무상태표', icon: 'layout-dashboard' },
             { id: 'IS', label: '손익계산서', icon: 'pie-chart' },
             { id: 'GL', label: '총계정원장', icon: 'book-open' },
             { id: 'EXPENSE_REPORT', label: '월간손익명세', icon: 'trending-up' },
             { id: 'BUDGET', label: '월별예산', icon: 'piggy-bank' }
-          ].map(nav => (
-            <button key={nav.id} onClick={() => { setCurrentView(nav.id); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${currentView === nav.id ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-100 text-slate-500'}`}>
-              <i data-lucide={nav.icon} className="shrink-0"></i>
-              {isSidebarOpen && <span className="font-medium animate-in fade-in whitespace-nowrap">{nav.label}</span>}
+          ].map(nav => html`
+            <button key=${nav.id} onClick=${() => { setCurrentView(nav.id); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className=${`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${currentView === nav.id ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-100 text-slate-500'}`}>
+              <i data-lucide=${nav.icon} className="shrink-0"></i>
+              ${isSidebarOpen && html`<span className="font-medium animate-in fade-in whitespace-nowrap">${nav.label}</span>`}
             </button>
-          ))}
+          `)}
         </nav>
         <div className="p-3 border-t text-slate-800 space-y-2 mb-4">
-          <button onClick={() => { setIsSettingsModalOpen(true); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 font-bold transition-colors">
+          <button onClick=${() => { setIsSettingsModalOpen(true); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 font-bold transition-colors">
             <i data-lucide="settings" className="shrink-0"></i>
-            {isSidebarOpen && <span className="animate-in fade-in whitespace-nowrap">설정</span>}
+            ${isSidebarOpen && html`<span className="animate-in fade-in whitespace-nowrap">설정</span>`}
           </button>
         </div>
       </aside>
 
-      {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="md:hidden fixed inset-0 bg-black/40 z-30 backdrop-blur-sm animate-in fade-in"></div>}
+      ${isSidebarOpen && html`<div onClick=${() => setIsSidebarOpen(false)} className="md:hidden fixed inset-0 bg-black/40 z-30 backdrop-blur-sm animate-in fade-in"></div>`}
 
       <main className="flex-1 flex flex-col overflow-hidden relative">
         <header className="h-14 sm:h-16 bg-white border-b flex items-center justify-between px-3 sm:px-6 shrink-0 z-10 shadow-sm text-slate-800">
           <div className="flex items-center gap-3 sm:gap-6">
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"><i data-lucide={isSidebarOpen ? 'chevron-left' : 'menu'} className="w-5 h-5"></i></button>
+            <button onClick=${() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"><i data-lucide=${isSidebarOpen ? 'chevron-left' : 'menu'} className="w-5 h-5"></i></button>
             <div className="flex items-center gap-1 sm:gap-3 bg-slate-50 px-2 sm:px-3 py-1.5 rounded-xl border border-slate-100 text-slate-700 font-bold">
               <i data-lucide="calendar" className="text-indigo-500 w-3 h-3 sm:w-4 sm:h-4"></i>
-              <input type="date" className="bg-transparent border-none outline-none text-[11px] sm:text-sm font-bold w-24 sm:w-32 cursor-pointer text-slate-700" value={standardDate} onChange={(e) => setStandardDate(e.target.value)} />
+              <input type="date" className="bg-transparent border-none outline-none text-[11px] sm:text-sm font-bold w-24 sm:w-32 cursor-pointer text-slate-700" value=${standardDate} onChange=${(e) => setStandardDate(e.target.value)} />
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={handleClosing} className="text-[11px] sm:text-sm px-3 sm:px-5">
+            <${Button} variant="secondary" onClick=${handleClosing} className="text-[11px] sm:text-sm px-3 sm:px-5">
               <i data-lucide="calculator" className="w-3.5 h-3.5 sm:w-4 sm:h-4"></i><span>결산 실행</span>
-            </Button>
-            <Button onClick={() => { setEntryRows({ date: standardDate, debits: [{ accountId: '', amount: 0 }], credits: [{ accountId: '', amount: 0 }], memo: '' }); setIsEntryModalOpen(true); }} className="text-[11px] sm:text-sm px-3 sm:px-5">
+            <//>
+            <${Button} onClick=${() => { setEntryRows({ date: standardDate, debits: [{ accountId: '', amount: 0 }], credits: [{ accountId: '', amount: 0 }], memo: '' }); setIsEntryModalOpen(true); }} className="text-[11px] sm:text-sm px-3 sm:px-5">
               <i data-lucide="plus-circle" className="w-3.5 h-3.5 sm:w-4 sm:h-4"></i><span>거래 입력</span>
-            </Button>
+            <//>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-3 sm:p-8 pb-24">
-          {currentView === 'CALENDAR' && (
-            <MonthlyCalendar 
-              accounts={accounts} 
-              transactions={transactions} 
-              getAccountById={getAccountById} 
-              onEditTransaction={(txId) => {
+          ${currentView === 'CALENDAR' && html`
+            <${MonthlyCalendar} 
+              accounts=${accounts} 
+              transactions=${transactions} 
+              getAccountById=${getAccountById} 
+              onEditTransaction=${(txId) => {
                 const tx = transactions.find(t => t.id === txId);
                 if(tx) { 
                   setEditingTransaction(tx); 
@@ -1462,176 +1458,176 @@ const App = () => {
                 }
               }} 
             />
-          )}
-          {currentView === 'BS' && (
+          `}
+          ${currentView === 'BS' && html`
             <div className="max-w-6xl mx-auto flex flex-col lg:grid lg:grid-cols-2 lg:gap-px bg-slate-100 lg:rounded-3xl overflow-hidden lg:border shadow-lg rounded-2xl border border-slate-200 text-slate-800">
               <div className="bg-white p-5 sm:p-8 border-b lg:border-none">
                 <h3 className="text-sm sm:text-xl font-black text-indigo-600 border-b-2 border-indigo-500 pb-2 mb-4 sm:mb-6 uppercase tracking-widest text-center">Assets</h3>
                 <div className="space-y-3 sm:space-y-4 min-h-[100px] sm:min-h-[250px]">
-                  {accounts.assets.filter(acc => (accountBalances[acc.id] || 0) !== 0).map(acc => (<div key={acc.id} className="flex justify-between items-center"><span className="text-xs sm:text-base text-slate-600 font-medium">{acc.name}</span><span className="font-mono font-bold text-sm sm:text-lg">{(accountBalances[acc.id] || 0).toLocaleString()}원</span></div>))}
+                  ${accounts.assets.filter(acc => (accountBalances[acc.id] || 0) !== 0).map(acc => html`<div key=${acc.id} className="flex justify-between items-center"><span className="text-xs sm:text-base text-slate-600 font-medium">${acc.name}</span><span className="font-mono font-bold text-sm sm:text-lg">${(accountBalances[acc.id] || 0).toLocaleString()}원</span></div>`)}
                 </div>
-                <div className="mt-6 sm:mt-8 pt-4 border-t-2 border-slate-50 flex justify-between items-center font-black"><span className="text-xs sm:text-lg uppercase">Total Assets</span><span className="font-mono font-black text-lg sm:text-2xl text-indigo-600">{totalAssets.toLocaleString()}원</span></div>
+                <div className="mt-6 sm:mt-8 pt-4 border-t-2 border-slate-50 flex justify-between items-center font-black"><span className="text-xs sm:text-lg uppercase">Total Assets</span><span className="font-mono font-black text-lg sm:text-2xl text-indigo-600">${totalAssets.toLocaleString()}원</span></div>
               </div>
               <div className="bg-white p-5 sm:p-8 flex flex-col text-slate-800">
                 <div className="flex-1">
                   <h3 className="text-sm sm:text-xl font-black text-red-500 border-b-2 border-red-500 pb-2 mb-4 sm:mb-6 uppercase tracking-widest text-center">Liabilities</h3>
                   <div className="space-y-3 sm:space-y-4 mb-8 sm:mb-12">
-                    {accounts.liabilities.filter(a => a.name !== '이익잉여금' && (accountBalances[a.id] || 0) !== 0).map(acc => (<div key={acc.id} className="flex justify-between items-center"><span className="text-xs sm:text-base text-slate-600 font-medium">{acc.name}</span><span className="font-mono font-bold text-sm sm:text-lg">{Math.abs(accountBalances[acc.id] || 0).toLocaleString()}원</span></div>))}
+                    ${accounts.liabilities.filter(a => a.name !== '이익잉여금' && (accountBalances[a.id] || 0) !== 0).map(acc => html`<div key=${acc.id} className="flex justify-between items-center"><span className="text-xs sm:text-base text-slate-600 font-medium">${acc.name}</span><span className="font-mono font-bold text-sm sm:text-lg">${Math.abs(accountBalances[acc.id] || 0).toLocaleString()}원</span></div>`)}
                   </div>
                   <h3 className="text-[10px] sm:text-xs font-black text-emerald-600 border-b border-emerald-200 pb-2 mb-3 sm:mb-4 uppercase tracking-widest">Equity</h3>
                   <div className="space-y-2 sm:space-y-3 font-bold">
-                    <div className="flex justify-between items-center text-[11px] sm:text-sm"><span>자본금</span><span className="font-mono">{calculatedInitialCapital.toLocaleString()}원</span></div>
-                    <div className="flex justify-between items-center bg-emerald-50 p-2 sm:p-3 rounded-xl border border-emerald-100 font-bold text-emerald-700"><span className="text-[10px] sm:text-xs">이익잉여금 (누적)</span><span className="font-mono text-xs sm:text-base">{retainedEarningsBalance.toLocaleString()}원</span></div>
-                    <div className="flex justify-between items-center border-t border-slate-50 pt-3"><span className="text-slate-400 text-[10px] sm:text-xs italic">당기순손익 (미결산)</span><span className={`font-mono text-xs sm:text-base font-bold ${unsettledNetIncome >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{unsettledNetIncome.toLocaleString()}원</span></div>
+                    <div className="flex justify-between items-center text-[11px] sm:text-sm"><span>자본금</span><span className="font-mono">${calculatedInitialCapital.toLocaleString()}원</span></div>
+                    <div className="flex justify-between items-center bg-emerald-50 p-2 sm:p-3 rounded-xl border border-emerald-100 font-bold text-emerald-700"><span className="text-[10px] sm:text-xs">이익잉여금 (누적)</span><span className="font-mono text-xs sm:text-base">${retainedEarningsBalance.toLocaleString()}원</span></div>
+                    <div className="flex justify-between items-center border-t border-slate-50 pt-3"><span className="text-slate-400 text-[10px] sm:text-xs italic">당기순손익 (미결산)</span><span className=${`font-mono text-xs sm:text-base font-bold ${unsettledNetIncome >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>${unsettledNetIncome.toLocaleString()}원</span></div>
                   </div>
                 </div>
-                <div className="mt-6 sm:mt-8 pt-4 border-t-2 border-slate-50 flex justify-between items-center font-black"><span className="text-xs sm:text-lg uppercase">Total L+E</span><span className="font-mono text-lg sm:text-2xl text-indigo-600">{(totalLiabilitiesOnly + currentEquity).toLocaleString()}원</span></div>
+                <div className="mt-6 sm:mt-8 pt-4 border-t-2 border-slate-50 flex justify-between items-center font-black"><span className="text-xs sm:text-lg uppercase">Total L+E</span><span className="font-mono text-lg sm:text-2xl text-indigo-600">${(totalLiabilitiesOnly + currentEquity).toLocaleString()}원</span></div>
               </div>
             </div>
-          )}
+          `}
 
-          {currentView === 'IS' && (
+          ${currentView === 'IS' && html`
             <div className="max-w-4xl mx-auto bg-white rounded-3xl border shadow-md p-5 sm:p-8 space-y-8 sm:space-y-12 text-slate-800">
               <section>
-                <div className="flex justify-between items-end border-b-4 border-emerald-500 pb-2 mb-4 sm:mb-6 font-black"><h3 className="text-base sm:text-2xl text-emerald-600 uppercase">I. Revenue</h3><span className="font-mono text-lg sm:text-2xl font-black text-emerald-600">{revenueHierarchy.total.toLocaleString()}원</span></div>
+                <div className="flex justify-between items-end border-b-4 border-emerald-500 pb-2 mb-4 sm:mb-6 font-black"><h3 className="text-base sm:text-2xl text-emerald-600 uppercase">I. Revenue</h3><span className="font-mono text-lg sm:text-2xl font-black text-emerald-600">${revenueHierarchy.total.toLocaleString()}원</span></div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  {revenueHierarchy.groups.filter(g => g.subtotal !== 0).map(group => (
-                    <div key={group.label} className="bg-slate-50 rounded-2xl p-4 border text-slate-800 font-bold">
-                      <div className="flex justify-between text-[10px] sm:text-xs font-black text-slate-400 uppercase mb-3 border-b pb-1"><span>{group.label}</span><span>{group.subtotal.toLocaleString()}원</span></div>
+                  ${revenueHierarchy.groups.filter(g => g.subtotal !== 0).map(group => html`
+                    <div key=${group.label} className="bg-slate-50 rounded-2xl p-4 border text-slate-800 font-bold">
+                      <div className="flex justify-between text-[10px] sm:text-xs font-black text-slate-400 uppercase mb-3 border-b pb-1"><span>${group.label}</span><span>${group.subtotal.toLocaleString()}원</span></div>
                       <div className="space-y-1">
-                        {group.accounts.map(a => (
-                          <div key={a.name} className="flex justify-between text-[11px] sm:text-sm py-0.5 italic"><span>{a.name}</span><span className="font-mono">{a.amount.toLocaleString()}원</span></div>
-                        ))}
+                        ${group.accounts.map(a => html`
+                          <div key=${a.name} className="flex justify-between text-[11px] sm:text-sm py-0.5 italic"><span>${a.name}</span><span className="font-mono">${a.amount.toLocaleString()}원</span></div>
+                        `)}
                       </div>
                     </div>
-                  ))}
+                  `)}
                 </div>
               </section>
               <section>
-                <div className="flex justify-between items-end border-b-4 border-orange-500 pb-2 mb-4 sm:mb-6 font-black"><h3 className="text-base sm:text-2xl text-orange-600 uppercase">II. Expenses</h3><span className="font-mono text-lg sm:text-2xl font-black text-orange-600">{expensesHierarchy.total.toLocaleString()}원</span></div>
+                <div className="flex justify-between items-end border-b-4 border-orange-500 pb-2 mb-4 sm:mb-6 font-black"><h3 className="text-base sm:text-2xl text-orange-600 uppercase">II. Expenses</h3><span className="font-mono text-lg sm:text-2xl font-black text-orange-600">${expensesHierarchy.total.toLocaleString()}원</span></div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  {expensesHierarchy.groups.filter(g => g.subtotal !== 0).map(group => (
-                    <div key={group.label} className="bg-slate-50 rounded-2xl p-4 border text-slate-800 font-bold">
-                      <div className="flex justify-between text-[10px] sm:text-xs font-black text-slate-400 uppercase mb-3 border-b pb-1"><span>{group.label}</span><span>{group.subtotal.toLocaleString()}원</span></div>
+                  ${expensesHierarchy.groups.filter(g => g.subtotal !== 0).map(group => html`
+                    <div key=${group.label} className="bg-slate-50 rounded-2xl p-4 border text-slate-800 font-bold">
+                      <div className="flex justify-between text-[10px] sm:text-xs font-black text-slate-400 uppercase mb-3 border-b pb-1"><span>${group.label}</span><span>${group.subtotal.toLocaleString()}원</span></div>
                       <div className="space-y-1">
-                        {group.accounts.map(a => (
-                          <div key={a.name} className="flex justify-between text-[11px] sm:text-sm py-0.5 italic"><span>{a.name}</span><span className="font-mono">{a.amount.toLocaleString()}원</span></div>
-                        ))}
+                        ${group.accounts.map(a => html`
+                          <div key=${a.name} className="flex justify-between text-[11px] sm:text-sm py-0.5 italic"><span>${a.name}</span><span className="font-mono">${a.amount.toLocaleString()}원</span></div>
+                        `)}
                       </div>
                     </div>
-                  ))}
+                  `)}
                 </div>
               </section>
-              <div className={`p-5 sm:p-8 rounded-2xl sm:rounded-3xl flex justify-between items-center shadow-inner border-2 sm:border-4 ${reportNetIncome >= 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}><div className="shrink-0 font-black"><h4 className="font-black text-sm sm:text-xl uppercase tracking-tighter text-slate-700">Net Income</h4></div><span className={`font-mono text-xl sm:text-5xl font-black ${reportNetIncome >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{reportNetIncome.toLocaleString()}원</span></div>
+              <div className=${`p-5 sm:p-8 rounded-2xl sm:rounded-3xl flex justify-between items-center shadow-inner border-2 sm:border-4 ${reportNetIncome >= 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}><div className="shrink-0 font-black"><h4 className="font-black text-sm sm:text-xl uppercase tracking-tighter text-slate-700">Net Income</h4></div><span className=${`font-mono text-xl sm:text-5xl font-black ${reportNetIncome >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>${reportNetIncome.toLocaleString()}원</span></div>
             </div>
-          )}
+          `}
 
-          {currentView === 'GL' && (
+          ${currentView === 'GL' && html`
             <div className="max-w-6xl mx-auto space-y-6 pb-10">
-              <Card className="flex flex-col sm:flex-row items-center gap-3 !p-4">
+              <${Card} className="flex flex-col sm:flex-row items-center gap-3 !p-4">
                 <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100 w-full sm:w-auto">
                   <i data-lucide="calendar" className="text-slate-400 w-4 h-4 shrink-0"></i>
-                  <input type="date" className="bg-transparent outline-none font-bold text-slate-600 text-[11px] sm:text-sm cursor-pointer" value={searchDateRange.start} onChange={e => setSearchDateRange({...searchDateRange, start: e.target.value})} />
+                  <input type="date" className="bg-transparent outline-none font-bold text-slate-600 text-[11px] sm:text-sm cursor-pointer" value=${searchDateRange.start} onChange=${e => setSearchDateRange({...searchDateRange, start: e.target.value})} />
                   <span className="text-slate-300">~</span>
-                  <input type="date" className="bg-transparent outline-none font-bold text-slate-600 text-[11px] sm:text-sm cursor-pointer" value={searchDateRange.end} onChange={e => setSearchDateRange({...searchDateRange, end: e.target.value})} />
-                  {(searchDateRange.start || searchDateRange.end) && <button onClick={() => setSearchDateRange({start: '', end: ''})} className="ml-1 text-slate-400 hover:text-red-500"><i data-lucide="x-circle" className="w-4 h-4"></i></button>}
+                  <input type="date" className="bg-transparent outline-none font-bold text-slate-600 text-[11px] sm:text-sm cursor-pointer" value=${searchDateRange.end} onChange=${e => setSearchDateRange({...searchDateRange, end: e.target.value})} />
+                  ${(searchDateRange.start || searchDateRange.end) && html`<button onClick=${() => setSearchDateRange({start: '', end: ''})} className="ml-1 text-slate-400 hover:text-red-500"><i data-lucide="x-circle" className="w-4 h-4"></i></button>`}
                 </div>
                 <div className="flex-1 flex items-center gap-2 w-full">
                   <i data-lucide="search" className="text-slate-400 shrink-0"></i>
-                  <input className="flex-1 bg-transparent outline-none font-bold text-slate-700 text-sm sm:text-base" placeholder="메모, 날짜, 계정과목명으로 실시간 검색..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                  <input className="flex-1 bg-transparent outline-none font-bold text-slate-700 text-sm sm:text-base" placeholder="메모, 날짜, 계정과목명으로 실시간 검색..." value=${searchTerm} onChange=${e => setSearchTerm(e.target.value)} />
                 </div>
-              </Card>
+              <//>
 
-              {(searchTerm || searchDateRange.start || searchDateRange.end) ? (
-                <Card>
-                  <div className="border-b px-5 py-4 bg-slate-50"><h3 className="font-black uppercase tracking-widest text-sm text-slate-800">검색 결과 ({filteredTxs.length}건)</h3></div>
+              ${(searchTerm || searchDateRange.start || searchDateRange.end) ? html`
+                <${Card}>
+                  <div className="border-b px-5 py-4 bg-slate-50"><h3 className="font-black uppercase tracking-widest text-sm text-slate-800">검색 결과 (${filteredTxs.length}건)</h3></div>
                   <div className="p-5 space-y-3">
-                    {filteredTxs.length === 0 && <p className="text-center text-slate-400 py-8 text-sm">검색 결과가 없습니다.</p>}
-                    {filteredTxs.map(t => (
-                      <div key={t.id} onClick={()=>{setEditingTransaction(t); setEntryRows({date:t.date, debits:t.debits, credits:t.credits, memo:t.memo}); setIsEntryModalOpen(true);}} className="p-4 border border-slate-100 bg-slate-50 rounded-xl hover:shadow-md transition-shadow cursor-pointer">
-                        <div className="text-xs text-slate-400 font-black mb-1">{t.date}</div>
-                        <div className="font-bold text-slate-700 mb-3">{t.memo || '내역 없음'}</div>
+                    ${filteredTxs.length === 0 && html`<p className="text-center text-slate-400 py-8 text-sm">검색 결과가 없습니다.</p>`}
+                    ${filteredTxs.map(t => html`
+                      <div key=${t.id} onClick=${()=>{setEditingTransaction(t); setEntryRows({date:t.date, debits:t.debits, credits:t.credits, memo:t.memo}); setIsEntryModalOpen(true);}} className="p-4 border border-slate-100 bg-slate-50 rounded-xl hover:shadow-md transition-shadow cursor-pointer">
+                        <div className="text-xs text-slate-400 font-black mb-1">${t.date}</div>
+                        <div className="font-bold text-slate-700 mb-3">${t.memo || '내역 없음'}</div>
                         <div className="grid grid-cols-2 gap-4 text-sm bg-white p-3 rounded-lg border border-slate-100">
                           <div>
                             <div className="text-[10px] text-slate-400 uppercase font-black mb-1 border-b pb-1">차변 (Debit)</div>
-                            {t.debits.map((d, i) => <div key={i} className="flex justify-between items-center py-0.5"><span className="text-indigo-600 font-medium text-xs">{getAccountById(d.accountId).name}</span><MoneyText amount={d.amount} className="text-xs" /></div>)}
+                            ${t.debits.map((d, i) => html`<div key=${i} className="flex justify-between items-center py-0.5"><span className="text-indigo-600 font-medium text-xs">${getAccountById(d.accountId).name}</span><${MoneyText} amount=${d.amount} className="text-xs" /></div>`)}
                           </div>
                           <div>
                             <div className="text-[10px] text-slate-400 uppercase font-black mb-1 border-b pb-1">대변 (Credit)</div>
-                            {t.credits.map((c, i) => <div key={i} className="flex justify-between items-center py-0.5"><span className="text-red-500 font-medium text-xs">{getAccountById(c.accountId).name}</span><MoneyText amount={c.amount} className="text-xs" /></div>)}
+                            ${t.credits.map((c, i) => html`<div key=${i} className="flex justify-between items-center py-0.5"><span className="text-red-500 font-medium text-xs">${getAccountById(c.accountId).name}</span><${MoneyText} amount=${c.amount} className="text-xs" /></div>`)}
                           </div>
                         </div>
                       </div>
-                    ))}
+                    `)}
                   </div>
-                </Card>
-              ) : (
+                <//>
+              ` : html`
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 text-slate-800">
-                  {['assets', 'liabilities', 'revenue', 'expenses'].map(cat => (
-                    <div key={cat} className="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm h-fit"><h3 className="text-[10px] sm:text-xs font-black uppercase text-slate-400 mb-3 text-center tracking-widest">{cat.toUpperCase()} Accounts</h3><div className="space-y-1.5">{(cat === 'liabilities' ? [...(accounts[cat] || []), {id: 'closing_temp', name: '결산(임시)'}] : [...(accounts[cat] || [])]).sort((a,b) => a.name.localeCompare(b.name, 'ko-KR')).map(a => (<div key={a.id} className="flex justify-between p-3 bg-slate-50 rounded-xl border border-transparent font-bold"><span className="text-xs sm:text-base">{a.name}</span><span className="font-mono text-sm sm:text-base">{(cat==='liabilities'||cat==='revenue' ? Math.abs(accountBalances[a.id] || 0) : accountBalances[a.id] || 0).toLocaleString()}원</span></div>))}</div></div>
-                  ))}
+                  ${['assets', 'liabilities', 'revenue', 'expenses'].map(cat => html`
+                    <div key=${cat} className="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm h-fit"><h3 className="text-[10px] sm:text-xs font-black uppercase text-slate-400 mb-3 text-center tracking-widest">${cat.toUpperCase()} Accounts</h3><div className="space-y-1.5">${(cat === 'liabilities' ? [...(accounts[cat] || []), {id: 'closing_temp', name: '결산(임시)'}] : [...(accounts[cat] || [])]).sort((a,b) => a.name.localeCompare(b.name, 'ko-KR')).map(a => html`<div key=${a.id} className="flex justify-between p-3 bg-slate-50 rounded-xl border border-transparent font-bold"><span className="text-xs sm:text-base">${a.name}</span><span className="font-mono text-sm sm:text-base">${(cat==='liabilities'||cat==='revenue' ? Math.abs(accountBalances[a.id] || 0) : accountBalances[a.id] || 0).toLocaleString()}원</span></div>`)}</div></div>
+                  `)}
                 </div>
-              )}
+              `}
             </div>
-          )}
+          `}
 
-          {currentView === 'EXPENSE_REPORT' && (
-            <MonthlyIncomeExpenseReport accounts={accounts} transactions={transactions} getAccountById={getAccountById} onEditTransaction={(txId) => {
+          ${currentView === 'EXPENSE_REPORT' && html`
+            <${MonthlyIncomeExpenseReport} accounts=${accounts} transactions=${transactions} getAccountById=${getAccountById} onEditTransaction=${(txId) => {
               const tx = transactions.find(t => t.id === txId);
               if(tx) { setEditingTransaction(tx); setEntryRows({ date: tx.date, debits: tx.debits, credits: tx.credits, memo: tx.memo }); setIsEntryModalOpen(true); }
             }} />
-          )}
+          `}
 
-          {currentView === 'BUDGET' && (
-            <MonthlyBudgetReport accounts={accounts} transactions={transactions} budgets={data.budgets} saveBudget={saveBudget} />
-          )}
+          ${currentView === 'BUDGET' && html`
+            <${MonthlyBudgetReport} accounts=${accounts} transactions=${transactions} budgets=${data.budgets} saveBudget=${saveBudget} />
+          `}
 
         </div>
       </main>
 
-      <Modal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} title="더블북 환경 설정" maxWidth="max-w-5xl" zIndex="z-[100]">
+      <${Modal} isOpen=${isSettingsModalOpen} onClose=${() => setIsSettingsModalOpen(false)} title="더블북 환경 설정" maxWidth="max-w-5xl" zIndex="z-[100]">
         <div className="flex flex-col md:flex-row gap-4 h-[78vh] md:h-[650px] overflow-hidden text-slate-800">
           <div className="flex md:flex-col overflow-x-auto pb-1 md:pb-0 gap-1.5 w-full md:w-48 shrink-0">
-            {[{ id: 'equity', label: '자본금', icon: 'coins' }, { id: 'accounts', label: '계정과목', icon: 'settings' }, { id: 'editTransactions', label: '거래 관리', icon: 'edit-3' }].map(tab => (
-              <button key={tab.id} onClick={() => setSettingsTab(tab.id)} className={`flex items-center justify-center md:justify-start gap-2 p-3 sm:p-4 rounded-xl font-bold transition-all flex-1 md:flex-none text-xs sm:text-sm whitespace-nowrap ${settingsTab === tab.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}><i data-lucide={tab.icon} className="w-4 h-4"></i>{tab.label}</button>
-            ))}
-            {isDirty && (
+            ${[{ id: 'equity', label: '자본금', icon: 'coins' }, { id: 'accounts', label: '계정과목', icon: 'settings' }, { id: 'editTransactions', label: '거래 관리', icon: 'edit-3' }].map(tab => html`
+              <button key=${tab.id} onClick=${() => setSettingsTab(tab.id)} className=${`flex items-center justify-center md:justify-start gap-2 p-3 sm:p-4 rounded-xl font-bold transition-all flex-1 md:flex-none text-xs sm:text-sm whitespace-nowrap ${settingsTab === tab.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}><i data-lucide=${tab.icon} className="w-4 h-4"></i>${tab.label}</button>
+            `)}
+            ${isDirty && html`
               <div className="mt-auto pt-4 hidden md:block">
-                <Button variant="primary" onClick={handleSyncSettings} className="w-full bg-orange-500 hover:bg-orange-600 animate-pulse">설정 저장하기</Button>
+                <${Button} variant="primary" onClick=${handleSyncSettings} className="w-full bg-orange-500 hover:bg-orange-600 animate-pulse">설정 저장하기<//>
               </div>
-            )}
+            `}
           </div>
           <div className="flex-1 overflow-y-auto pr-0 md:pr-4 modal-scroll pb-10">
-            {settingsTab === 'equity' && (
+            ${settingsTab === 'equity' && html`
               <div className="space-y-6">
                 <h4 className="text-sm font-black uppercase tracking-widest text-slate-800 ml-1">자본금 및 기초 부채</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col shadow-sm">
                     <div className="bg-indigo-600 text-white p-2 text-center text-[10px] font-black uppercase">Debit (차변 - 기초 자산)</div>
                     <div className="p-3 space-y-2 min-h-[150px] flex-1">
-                      {(initialSetup.debits || []).map((r, i) => (
-                        <div key={i} className="flex gap-2 items-center">
-                          <button onClick={() => setActivePicker({ type: 'setupDebits', index: i })} className="flex-1 p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate">{r.accountId ? getAccountById(r.accountId).name : '자산 선택'}</button>
-                          <input type="number" className="w-20 sm:w-28 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-indigo-600 text-xs sm:text-sm outline-none" value={r.amount || ''} onChange={(e) => { const val = Number(e.target.value); setData(prev => { const n = [...prev.initialSetup.debits]; n[i] = { ...n[i], amount: val }; return { ...prev, initialSetup: { ...prev.initialSetup, debits: n } }; }); setIsDirty(true); }} />
-                          <button onClick={()=>{ setData(prev => { const n = [...prev.initialSetup.debits]; if (n.length > 1) n.splice(i, 1); return { ...prev, initialSetup: { ...prev.initialSetup, debits: n } }; }); setIsDirty(true); }} className="text-slate-300 hover:text-red-500 p-1"><TrashIcon/></button>
+                      ${(initialSetup.debits || []).map((r, i) => html`
+                        <div key=${i} className="flex gap-2 items-center">
+                          <button onClick=${() => setActivePicker({ type: 'setupDebits', index: i })} className="flex-1 p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate">${r.accountId ? getAccountById(r.accountId).name : '자산 선택'}</button>
+                          <input type="number" className="w-20 sm:w-28 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-indigo-600 text-xs sm:text-sm outline-none" value=${r.amount || ''} onChange=${(e) => { const val = Number(e.target.value); setData(prev => { const n = [...prev.initialSetup.debits]; n[i] = { ...n[i], amount: val }; return { ...prev, initialSetup: { ...prev.initialSetup, debits: n } }; }); setIsDirty(true); }} />
+                          <button onClick=${()=>{ setData(prev => { const n = [...prev.initialSetup.debits]; if (n.length > 1) n.splice(i, 1); return { ...prev, initialSetup: { ...prev.initialSetup, debits: n } }; }); setIsDirty(true); }} className="text-slate-300 hover:text-red-500 p-1"><${TrashIcon}/></button>
                         </div>
-                      ))}
-                      <button onClick={() => { setData(prev => ({ ...prev, initialSetup: { ...prev.initialSetup, debits: [...(prev.initialSetup.debits || []), { accountId: '', amount: 0 }] } })); setIsDirty(true); }} className="w-full p-2 mt-2 text-[10px] font-black text-indigo-500 border border-dashed border-indigo-200 rounded-lg hover:bg-indigo-50">+ 자산 추가</button>
+                      `)}
+                      <button onClick=${() => { setData(prev => ({ ...prev, initialSetup: { ...prev.initialSetup, debits: [...(prev.initialSetup.debits || []), { accountId: '', amount: 0 }] } })); setIsDirty(true); }} className="w-full p-2 mt-2 text-[10px] font-black text-indigo-500 border border-dashed border-indigo-200 rounded-lg hover:bg-indigo-50">+ 자산 추가</button>
                     </div>
-                    <div className="bg-slate-50 p-3 flex justify-between font-black border-t text-xs"><span className="text-[9px] uppercase text-slate-400">Sum of Assets</span><span className="font-mono text-indigo-600 font-black">{setupTotalDebits.toLocaleString()}원</span></div>
+                    <div className="bg-slate-50 p-3 flex justify-between font-black border-t text-xs"><span className="text-[9px] uppercase text-slate-400">Sum of Assets</span><span className="font-mono text-indigo-600 font-black">${setupTotalDebits.toLocaleString()}원</span></div>
                   </div>
                   <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col h-fit shadow-sm">
                     <div className="bg-emerald-600 text-white p-2 text-center text-[10px] font-black uppercase">Credit (대변 - 자본/부채)</div>
                     <div className="p-3 space-y-3">
-                      <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex justify-between items-center"><span className="font-bold text-emerald-800 text-[11px] sm:text-sm font-black">자본금 (자동 계산)</span><span className="font-mono font-black text-emerald-600 text-xs sm:text-lg">{calculatedInitialCapital.toLocaleString()}원</span></div>
+                      <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex justify-between items-center"><span className="font-bold text-emerald-800 text-[11px] sm:text-sm font-black">자본금 (자동 계산)</span><span className="font-mono font-black text-emerald-600 text-xs sm:text-lg">${calculatedInitialCapital.toLocaleString()}원</span></div>
                       <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex justify-between items-center gap-2">
                         <span className="font-bold text-emerald-800 text-[11px] sm:text-sm font-black">이익잉여금</span>
                         <input 
                           type="number" 
                           className="w-24 sm:w-32 p-2 rounded-lg bg-white text-right font-black border border-emerald-200 text-emerald-600 text-xs sm:text-sm outline-none font-mono" 
-                          value={retainedEarningsAmount || ''} 
+                          value=${retainedEarningsAmount || ''} 
                           placeholder="0" 
-                          onChange={(e) => { 
+                          onChange=${(e) => { 
                             const val = Number(e.target.value); 
                             setData(prev => { 
                               const newCredits = [...(prev.initialSetup.credits || [])]; 
@@ -1648,182 +1644,182 @@ const App = () => {
                         />
                       </div>
                       <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest pt-1 border-t mb-1">기초 부채 내역</div>
-                      {(initialSetup.credits || []).filter(r => String(r.accountId) !== String(retainedEarningsId)).map((r, i) => {
+                      ${(initialSetup.credits || []).filter(r => String(r.accountId) !== String(retainedEarningsId)).map((r, i) => {
                         const originalIndex = initialSetup.credits.findIndex(c => c === r);
-                        return (
-                          <div key={originalIndex} className="flex gap-2 items-center">
-                            <button onClick={() => setActivePicker({ type: 'setupCredits', index: originalIndex })} className="flex-1 p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate">{r.accountId ? getAccountById(r.accountId).name : '부채 선택'}</button>
-                            <input type="number" className="w-20 sm:w-28 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-red-500 text-xs outline-none" value={r.amount || ''} onChange={(e) => { const val = Number(e.target.value); setData(prev => { const n = [...prev.initialSetup.credits]; n[originalIndex] = { ...n[originalIndex], amount: val }; return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} />
-                            <button onClick={()=>{ setData(prev => { const n = [...prev.initialSetup.credits]; n.splice(originalIndex, 1); return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} className="text-slate-300 hover:text-red-500 p-1"><TrashIcon/></button>
+                        return html`
+                          <div key=${originalIndex} className="flex gap-2 items-center">
+                            <button onClick=${() => setActivePicker({ type: 'setupCredits', index: originalIndex })} className="flex-1 p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate">${r.accountId ? getAccountById(r.accountId).name : '부채 선택'}</button>
+                            <input type="number" className="w-20 sm:w-28 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-red-500 text-xs outline-none" value=${r.amount || ''} onChange=${(e) => { const val = Number(e.target.value); setData(prev => { const n = [...prev.initialSetup.credits]; n[originalIndex] = { ...n[originalIndex], amount: val }; return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} />
+                            <button onClick=${()=>{ setData(prev => { const n = [...prev.initialSetup.credits]; n.splice(originalIndex, 1); return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} className="text-slate-300 hover:text-red-500 p-1"><${TrashIcon}/></button>
                           </div>
-                        );
+                        `;
                       })}
-                      <button onClick={() => { setData(prev => ({ ...prev, initialSetup: { ...prev.initialSetup, credits: [...(prev.initialSetup.credits || []), { accountId: '', amount: 0 }] } })); setIsDirty(true); }} className="w-full p-2 mt-1 text-[10px] font-black text-red-400 border border-dashed border-red-100 rounded-lg hover:bg-red-50">+ 부채 추가</button>
+                      <button onClick=${() => { setData(prev => ({ ...prev, initialSetup: { ...prev.initialSetup, credits: [...(prev.initialSetup.credits || []), { accountId: '', amount: 0 }] } })); setIsDirty(true); }} className="w-full p-2 mt-1 text-[10px] font-black text-red-400 border border-dashed border-red-100 rounded-lg hover:bg-red-50">+ 부채 추가</button>
                     </div>
                   </div>
                 </div>
               </div>
-            )}
-            {settingsTab === 'accounts' && (
+            `}
+            ${settingsTab === 'accounts' && html`
               <div className="space-y-10">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {['assets', 'liabilities'].map(cat => (
-                    <div key={cat} className="bg-slate-50 p-4 rounded-2xl border shadow-inner h-fit text-slate-800">
-                      <div className="flex justify-between items-center mb-3 text-indigo-500 font-black text-[10px] uppercase"><span>{cat.toUpperCase()} Accounts</span><button onClick={() => setAddingToCategory(cat)} className="p-1 hover:bg-indigo-100 rounded-full transition-colors"><i data-lucide="plus" className="w-4 h-4"></i></button></div>
+                  ${['assets', 'liabilities'].map(cat => html`
+                    <div key=${cat} className="bg-slate-50 p-4 rounded-2xl border shadow-inner h-fit text-slate-800">
+                      <div className="flex justify-between items-center mb-3 text-indigo-500 font-black text-[10px] uppercase"><span>${cat.toUpperCase()} Accounts</span><button onClick=${() => setAddingToCategory(cat)} className="p-1 hover:bg-indigo-100 rounded-full transition-colors"><i data-lucide="plus" className="w-4 h-4"></i></button></div>
                       <div className="space-y-1.5">
-                        {(accounts[cat] || []).filter(a => a.name !== '이익잉여금').map(a => (
-                          <div key={a.id} className="flex items-center gap-2 p-2 bg-white rounded-xl border group shadow-sm transition-all hover:border-indigo-200 font-bold">
-                            <input className="flex-1 bg-transparent border-none outline-none font-bold text-xs sm:text-sm text-slate-800" value={a.name} onChange={(e) => handleUpdateAccountName(cat, a.id, e.target.value)} />
-                            <button onClick={() => handleDeleteAccount(cat, a.id)} className="sm:opacity-0 group-hover:opacity-100 text-red-400 p-1.5"><TrashIcon/></button>
+                        ${(accounts[cat] || []).filter(a => a.name !== '이익잉여금').map(a => html`
+                          <div key=${a.id} className="flex items-center gap-2 p-2 bg-white rounded-xl border group shadow-sm transition-all hover:border-indigo-200 font-bold">
+                            <input className="flex-1 bg-transparent border-none outline-none font-bold text-xs sm:text-sm text-slate-800" value=${a.name} onChange=${(e) => handleUpdateAccountName(cat, a.id, e.target.value)} />
+                            <button onClick=${() => handleDeleteAccount(cat, a.id)} className="sm:opacity-0 group-hover:opacity-100 text-red-400 p-1.5"><${TrashIcon}/></button>
                           </div>
-                        ))}
-                        {addingToCategory === cat && (
-                          <div className="p-1"><input autoFocus className="w-full p-2 bg-white rounded-xl border border-indigo-200 text-xs font-bold text-indigo-600 outline-none" placeholder="항목 입력 후 Enter" onBlur={(e) => handleAddAccount(cat, e.target.value)} onKeyDown={(e)=>e.key==='Enter'&&e.target.blur()} /></div>
-                        )}
+                        `)}
+                        ${addingToCategory === cat && html`
+                          <div className="p-1"><input autoFocus className="w-full p-2 bg-white rounded-xl border border-indigo-200 text-xs font-bold text-indigo-600 outline-none" placeholder="항목 입력 후 Enter" onBlur=${(e) => handleAddAccount(cat, e.target.value)} onKeyDown=${(e)=>e.key==='Enter'&&e.target.blur()} /></div>
+                        `}
                       </div>
                     </div>
-                  ))}
+                  `)}
                 </div>
                 <div className="space-y-6">
-                  {['revenue', 'expenses'].map(type => (
-                    <div key={type} className="border-t pt-5">
-                      <div className="flex justify-between items-center mb-4"><h5 className="font-black text-indigo-600 uppercase tracking-widest text-[11px]">{type.toUpperCase()} 분류 관리</h5><button onClick={() => setAddingToCategory(type)} className="text-[10px] bg-indigo-600 text-white px-3 py-1.5 rounded-full font-black shadow-sm">+ 추가</button></div>
+                  ${['revenue', 'expenses'].map(type => html`
+                    <div key=${type} className="border-t pt-5">
+                      <div className="flex justify-between items-center mb-4"><h5 className="font-black text-indigo-600 uppercase tracking-widest text-[11px]">${type.toUpperCase()} 분류 관리</h5><button onClick=${() => setAddingToCategory(type)} className="text-[10px] bg-indigo-600 text-white px-3 py-1.5 rounded-full font-black shadow-sm">+ 추가</button></div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                        {['fixed', 'variable'].map(subtype => (
-                          <div key={subtype} onDragOver={handleDragOver} onDrop={() => handleSubtypeDrop(subtype, type)} className="bg-white border-2 border-slate-50 rounded-2xl p-4 sm:p-5 transition-all shadow-sm min-h-[120px]">
-                            <div className="flex justify-between items-center mb-3 border-b border-slate-50 pb-1.5 text-slate-400 font-black"><span className="uppercase text-[9px] tracking-widest">{subtype === 'fixed' ? '고정 (Fixed)' : '변동 (Variable)'}</span><i data-lucide={subtype === 'fixed' ? 'lock' : 'zap'} className="w-3 h-3"></i></div>
+                        ${['fixed', 'variable'].map(subtype => html`
+                          <div key=${subtype} onDragOver=${handleDragOver} onDrop=${() => handleSubtypeDrop(subtype, type)} className="bg-white border-2 border-slate-50 rounded-2xl p-4 sm:p-5 transition-all shadow-sm min-h-[120px]">
+                            <div className="flex justify-between items-center mb-3 border-b border-slate-50 pb-1.5 text-slate-400 font-black"><span className="uppercase text-[9px] tracking-widest">${subtype === 'fixed' ? '고정 (Fixed)' : '변동 (Variable)'}</span><i data-lucide=${subtype === 'fixed' ? 'lock' : 'zap'} className="w-3 h-3"></i></div>
                             <div className="grid grid-cols-1 gap-1.5">
-                              {accounts[type].filter(a => (a.subtype || 'fixed') === subtype).map(acc => (
-                                <div key={acc.id} draggable onDragStart={() => handleAccountDragStart(acc.id)} className="bg-slate-50 border border-slate-100 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-3 group hover:bg-white hover:border-indigo-100 transition-all text-slate-700 w-full shadow-sm">
+                              ${accounts[type].filter(a => (a.subtype || 'fixed') === subtype).map(acc => html`
+                                <div key=${acc.id} draggable onDragStart=${() => handleAccountDragStart(acc.id)} className="bg-slate-50 border border-slate-100 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-3 group hover:bg-white hover:border-indigo-100 transition-all text-slate-700 w-full shadow-sm">
                                   <i data-lucide="grip-vertical" className="text-slate-200 shrink-0 hidden sm:block"></i>
-                                  <input className="bg-transparent border-none outline-none flex-1 font-bold min-w-0" value={acc.name} onChange={(e) => handleUpdateAccountName(type, acc.id, e.target.value)} />
-                                  <button onClick={() => handleDeleteAccount(type, acc.id)} className="sm:opacity-0 group-hover:opacity-100 text-red-400 p-1"><i data-lucide="x" className="w-3.5 h-3.5"></i></button>
+                                  <input className="bg-transparent border-none outline-none flex-1 font-bold min-w-0" value=${acc.name} onChange=${(e) => handleUpdateAccountName(type, acc.id, e.target.value)} />
+                                  <button onClick=${() => handleDeleteAccount(type, acc.id)} className="sm:opacity-0 group-hover:opacity-100 text-red-400 p-1"><i data-lucide="x" className="w-3.5 h-3.5"></i></button>
                                 </div>
-                              ))}
+                              `)}
                             </div>
                           </div>
-                        ))}
+                        `)}
                       </div>
-                      {addingToCategory === type && (<div className="mt-3 p-3 bg-indigo-50 rounded-2xl border border-indigo-100 text-center"><input autoFocus className="bg-transparent border-none outline-none font-black text-indigo-600 text-center text-xs w-full" placeholder="항목 입력 후 Enter..." onBlur={(e) => handleAddAccount(type, e.target.value)} onKeyDown={(e)=>e.key==='Enter'&&e.target.blur()} /></div>)}
+                      ${addingToCategory === type && html`<div className="mt-3 p-3 bg-indigo-50 rounded-2xl border border-indigo-100 text-center"><input autoFocus className="bg-transparent border-none outline-none font-black text-indigo-600 text-center text-xs w-full" placeholder="항목 입력 후 Enter..." onBlur=${(e) => handleAddAccount(type, e.target.value)} onKeyDown=${(e)=>e.key==='Enter'&&e.target.blur()} /></div>`}
                     </div>
-                  ))}
+                  `)}
                 </div>
               </div>
-            )}
-            {settingsTab === 'editTransactions' && (
+            `}
+            ${settingsTab === 'editTransactions' && html`
               <div className="space-y-4 pb-10">
                 <div className="flex items-center gap-2 mb-4 bg-white p-3 rounded-xl border border-slate-100 text-slate-800 font-bold overflow-x-auto">
-                  <i data-lucide="search" className="text-slate-300 w-4 h-4 shrink-0"></i><input type="date" className="bg-transparent outline-none font-bold text-[11px] cursor-pointer" value={editRange.start} onChange={(e)=>setEditRange({...editRange, start: e.target.value})}/><span className="text-slate-300">~</span><input type="date" className="bg-transparent outline-none font-bold text-[11px] cursor-pointer" value={editRange.end} onChange={(e)=>setEditRange({...editRange, end: e.target.value})}/>
+                  <i data-lucide="search" className="text-slate-300 w-4 h-4 shrink-0"></i><input type="date" className="bg-transparent outline-none font-bold text-[11px] cursor-pointer" value=${editRange.start} onChange=${(e)=>setEditRange({...editRange, start: e.target.value})}/><span className="text-slate-300">~</span><input type="date" className="bg-transparent outline-none font-bold text-[11px] cursor-pointer" value=${editRange.end} onChange=${(e)=>setEditRange({...editRange, end: e.target.value})}/>
                 </div>
                 <div className="space-y-2">
-                  {transactions.filter(t => t.date >= editRange.start && t.date <= editRange.end).sort((a,b) => b.date.localeCompare(a.date)).map(t => (
-                    <div key={t.id} onClick={()=>{setEditingTransaction(t); setEntryRows({date:t.date, debits:t.debits, credits:t.credits, memo:t.memo}); setIsEntryModalOpen(true);}} className="p-3.5 bg-white border rounded-xl flex justify-between cursor-pointer hover:border-indigo-500 transition-all shadow-sm active:bg-indigo-50">
-                      <div><p className="text-[9px] font-black text-slate-400 uppercase">{t.date}</p><p className="font-bold text-xs text-slate-700 mt-0.5">{t.memo || '거래 내역'}</p></div>
-                      <div className="text-right flex flex-col justify-center"><div className="font-mono font-black text-slate-700 text-xs sm:text-base">{(t.debits.reduce((s,d)=>s+d.amount, 0)).toLocaleString()}원</div></div>
+                  ${transactions.filter(t => t.date >= editRange.start && t.date <= editRange.end).sort((a,b) => b.date.localeCompare(a.date)).map(t => html`
+                    <div key=${t.id} onClick=${()=>{setEditingTransaction(t); setEntryRows({date:t.date, debits:t.debits, credits:t.credits, memo:t.memo}); setIsEntryModalOpen(true);}} className="p-3.5 bg-white border rounded-xl flex justify-between cursor-pointer hover:border-indigo-500 transition-all shadow-sm active:bg-indigo-50">
+                      <div><p className="text-[9px] font-black text-slate-400 uppercase">${t.date}</p><p className="font-bold text-xs text-slate-700 mt-0.5">${t.memo || '거래 내역'}</p></div>
+                      <div className="text-right flex flex-col justify-center"><div className="font-mono font-black text-slate-700 text-xs sm:text-base">${(t.debits.reduce((s,d)=>s+d.amount, 0)).toLocaleString()}원</div></div>
                     </div>
-                  ))}
+                  `)}
                 </div>
               </div>
-            )}
-            {isDirty && (
+            `}
+            ${isDirty && html`
               <div className="mt-6 md:hidden">
-                <Button variant="primary" onClick={handleSyncSettings} className="w-full bg-orange-500 hover:bg-orange-600 animate-pulse">설정 변경사항 저장하기</Button>
+                <${Button} variant="primary" onClick=${handleSyncSettings} className="w-full bg-orange-500 hover:bg-orange-600 animate-pulse">설정 변경사항 저장하기<//>
               </div>
-            )}
+            `}
           </div>
         </div>
-      </Modal>
+      <//>
 
-      <Modal isOpen={isEntryModalOpen} onClose={() => {setIsEntryModalOpen(false); setEditingTransaction(null);}} title={editingTransaction?"전표 수정":"전표 입력"} maxWidth="max-w-6xl" zIndex="z-[120]">
+      <${Modal} isOpen=${isEntryModalOpen} onClose=${() => {setIsEntryModalOpen(false); setEditingTransaction(null);}} title=${editingTransaction?"전표 수정":"전표 입력"} maxWidth="max-w-6xl" zIndex="z-[120]">
         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 text-slate-800">
           <div className="w-full lg:w-48 shrink-0 bg-slate-50 p-4 rounded-2xl border h-fit shadow-inner">
             <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 text-center lg:text-left">전표 날짜</label>
-            <input type="date" className="w-full p-2.5 rounded-xl border text-xs font-bold outline-none mb-3 shadow-sm bg-white text-slate-700" value={entryRows.date} onChange={(e) => setEntryRows({...entryRows, date: e.target.value})} />
-            {editingTransaction && (<button onClick={handleDeleteTransactionWrapper} className="w-full p-3 bg-red-50 text-red-500 rounded-xl font-bold text-[11px] hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i>삭제하기</button>)}
+            <input type="date" className="w-full p-2.5 rounded-xl border text-xs font-bold outline-none mb-3 shadow-sm bg-white text-slate-700" value=${entryRows.date} onChange=${(e) => setEntryRows({...entryRows, date: e.target.value})} />
+            ${editingTransaction && html`<button onClick=${handleDeleteTransactionWrapper} className="w-full p-3 bg-red-50 text-red-500 rounded-xl font-bold text-[11px] hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i>삭제하기</button>`}
           </div>
           <div className="flex-1 space-y-4 pb-20 sm:pb-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden">
                 <div className="bg-indigo-600 text-white p-2 font-black text-center text-[10px] uppercase">Debit (차변)</div>
                 <div className="p-3 space-y-2 min-h-[120px] sm:min-h-[250px] flex-1">
-                  {entryRows.debits.map((r, i) => (
-                    <div key={i} className="flex gap-1.5 items-center animate-in slide-in-from-left-2">
-                      <button onClick={() => setActivePicker({ type: 'debits', index: i })} className="flex-1 p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate active:bg-indigo-50">{r.accountId ? getAccountById(r.accountId).name : '계정 선택'}</button>
-                      <input type="number" className="w-20 sm:w-28 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-xs outline-none" placeholder="0" value={r.amount || ''} onChange={(e) => handleUpdateEntryRow('debits', i, 'amount', Number(e.target.value))} />
-                      <button onClick={()=>{const n=[...entryRows.debits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, debits:n}));}}} className="text-slate-300 hover:text-red-500 p-1"><TrashIcon/></button>
+                  ${entryRows.debits.map((r, i) => html`
+                    <div key=${i} className="flex gap-1.5 items-center animate-in slide-in-from-left-2">
+                      <button onClick=${() => setActivePicker({ type: 'debits', index: i })} className="flex-1 p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate active:bg-indigo-50">${r.accountId ? getAccountById(r.accountId).name : '계정 선택'}</button>
+                      <input type="number" className="w-20 sm:w-28 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-xs outline-none" placeholder="0" value=${r.amount || ''} onChange=${(e) => handleUpdateEntryRow('debits', i, 'amount', Number(e.target.value))} />
+                      <button onClick=${()=>{const n=[...entryRows.debits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, debits:n}));}}} className="text-slate-300 hover:text-red-500 p-1"><${TrashIcon}/></button>
                     </div>
-                  ))}
-                  <button onClick={() => setEntryRows(prev => ({...prev, debits: [...prev.debits, {accountId:'', amount:0}]}))} className="w-full p-2 mt-1 text-[10px] font-black text-indigo-500 border border-dashed border-indigo-200 rounded-lg hover:bg-indigo-50">+ 행 추가</button>
+                  `)}
+                  <button onClick=${() => setEntryRows(prev => ({...prev, debits: [...prev.debits, {accountId:'', amount:0}]}))} className="w-full p-2 mt-1 text-[10px] font-black text-indigo-500 border border-dashed border-indigo-200 rounded-lg hover:bg-indigo-50">+ 행 추가</button>
                 </div>
                 <div className="bg-slate-50 p-2.5 flex justify-between items-center font-black border-t text-xs sm:text-base">
                   <span className="text-[9px] uppercase text-slate-400">Total Debit</span>
-                  {totalCreditSum > totalDebitSum && (
+                  ${totalCreditSum > totalDebitSum && html`
                     <span className="text-[10px] sm:text-xs text-red-500 font-black px-2 py-0.5 rounded-md bg-red-50 border border-red-100 animate-pulse">
-                      {(totalCreditSum - totalDebitSum).toLocaleString()}원 부족
+                      ${(totalCreditSum - totalDebitSum).toLocaleString()}원 부족
                     </span>
-                  )}
-                  <span className="font-mono text-indigo-600 font-black">{totalDebitSum.toLocaleString()}원</span>
+                  `}
+                  <span className="font-mono text-indigo-600 font-black">${totalDebitSum.toLocaleString()}원</span>
                 </div>
               </div>
               <div className="bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden">
                 <div className="bg-red-500 text-white p-2 font-black text-center text-[10px] uppercase">Credit (대변)</div>
                 <div className="p-3 space-y-2 min-h-[120px] sm:min-h-[250px] flex-1">
-                  {entryRows.credits.map((r, i) => (
-                    <div key={i} className="flex gap-1.5 items-center animate-in slide-in-from-right-2">
-                      <button onClick={() => setActivePicker({ type: 'credits', index: i })} className="flex-1 p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate active:bg-red-50">{r.accountId ? getAccountById(r.accountId).name : '계정 선택'}</button>
-                      <input type="number" className="w-20 sm:w-28 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-xs outline-none" placeholder="0" value={r.amount || ''} onChange={(e) => handleUpdateEntryRow('credits', i, 'amount', Number(e.target.value))} />
-                      <button onClick={()=>{const n=[...entryRows.credits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, credits:n}));}}} className="text-slate-300 hover:text-red-500 p-1"><TrashIcon/></button>
+                  ${entryRows.credits.map((r, i) => html`
+                    <div key=${i} className="flex gap-1.5 items-center animate-in slide-in-from-right-2">
+                      <button onClick=${() => setActivePicker({ type: 'credits', index: i })} className="flex-1 p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate active:bg-red-50">${r.accountId ? getAccountById(r.accountId).name : '계정 선택'}</button>
+                      <input type="number" className="w-20 sm:w-28 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-xs outline-none" placeholder="0" value=${r.amount || ''} onChange=${(e) => handleUpdateEntryRow('credits', i, 'amount', Number(e.target.value))} />
+                      <button onClick=${()=>{const n=[...entryRows.credits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, credits:n}));}}} className="text-slate-300 hover:text-red-500 p-1"><${TrashIcon}/></button>
                     </div>
-                  ))}
-                  <button onClick={() => setEntryRows(prev => ({...prev, credits: [...prev.credits, {accountId:'', amount:0}]}))} className="w-full p-2 mt-1 text-[10px] font-black text-red-500 border border-dashed border-red-200 rounded-lg hover:bg-red-50">+ 행 추가</button>
+                  `)}
+                  <button onClick=${() => setEntryRows(prev => ({...prev, credits: [...prev.credits, {accountId:'', amount:0}]}))} className="w-full p-2 mt-1 text-[10px] font-black text-red-500 border border-dashed border-red-200 rounded-lg hover:bg-red-50">+ 행 추가</button>
                 </div>
                 <div className="bg-slate-50 p-2.5 flex justify-between items-center font-black border-t text-xs sm:text-base">
                   <span className="text-[9px] uppercase text-slate-400">Total Credit</span>
-                  {totalDebitSum > totalCreditSum && (
+                  ${totalDebitSum > totalCreditSum && html`
                     <span className="text-[10px] sm:text-xs text-red-500 font-black px-2 py-0.5 rounded-md bg-red-50 border border-red-100 animate-pulse">
-                      {(totalDebitSum - totalCreditSum).toLocaleString()}원 부족
+                      ${(totalDebitSum - totalCreditSum).toLocaleString()}원 부족
                     </span>
-                  )}
-                  <span className="font-mono text-red-500 font-black">{totalCreditSum.toLocaleString()}원</span>
+                  `}
+                  <span className="font-mono text-red-500 font-black">${totalCreditSum.toLocaleString()}원</span>
                 </div>
               </div>
             </div>
             <div className="bg-slate-50 p-3 sm:p-4 rounded-2xl border flex flex-col gap-3 shadow-inner">
-              <input type="text" className="w-full bg-white p-2.5 rounded-xl border border-slate-200 outline-none font-bold placeholder:text-slate-300 text-slate-700 text-xs sm:text-base" placeholder="거래 메모를 입력하세요 (예: 식비 결제)" value={entryRows.memo} onChange={(e) => setEntryRows({...entryRows, memo: e.target.value})} />
+              <input type="text" className="w-full bg-white p-2.5 rounded-xl border border-slate-200 outline-none font-bold placeholder:text-slate-300 text-slate-700 text-xs sm:text-base" placeholder="거래 메모를 입력하세요 (예: 식비 결제)" value=${entryRows.memo} onChange=${(e) => setEntryRows({...entryRows, memo: e.target.value})} />
               <div className="flex items-center justify-between gap-4">
-                <span className={`px-4 py-2 rounded-full text-[10px] font-black uppercase shadow-sm ${totalDebitSum === totalCreditSum && totalDebitSum > 0 ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                  {totalDebitSum === totalCreditSum && totalDebitSum > 0 
+                <span className=${`px-4 py-2 rounded-full text-[10px] font-black uppercase shadow-sm ${totalDebitSum === totalCreditSum && totalDebitSum > 0 ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                  ${totalDebitSum === totalCreditSum && totalDebitSum > 0 
                     ? '차대일치' 
                     : `불일치 (${Math.abs(totalDebitSum - totalCreditSum).toLocaleString()}원 부족)`}
                 </span>
-                <button onClick={handleSaveEntry} disabled={isSavingEntry || totalDebitSum !== totalCreditSum || totalDebitSum === 0} className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white px-6 py-3 rounded-xl font-black shadow-lg transition-all active:scale-95 text-xs sm:text-sm whitespace-nowrap">
-                  {isSavingEntry ? (
+                <button onClick=${handleSaveEntry} disabled=${isSavingEntry || totalDebitSum !== totalCreditSum || totalDebitSum === 0} className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white px-6 py-3 rounded-xl font-black shadow-lg transition-all active:scale-95 text-xs sm:text-sm whitespace-nowrap">
+                  ${isSavingEntry ? html`
                     <span className="flex items-center justify-center gap-2">
                       <i data-lucide="loader-2" className="w-4 h-4 animate-spin"></i> 저장 중...
                     </span>
-                  ) : "전표 저장하기"}
+                  ` : "전표 저장하기"}
                 </button>
               </div>
             </div>
           </div>
         </div>
-      </Modal>
+      <//>
 
-      <Modal isOpen={activePicker !== null} onClose={() => setActivePicker(null)} title="계정과목 선택" maxWidth="max-w-4xl" zIndex="z-[150]">
-        <AccountGridPicker accounts={accounts} onPick={handleAccountPick} />
-      </Modal>
+      <${Modal} isOpen=${activePicker !== null} onClose=${() => setActivePicker(null)} title="계정과목 선택" maxWidth="max-w-4xl" zIndex="z-[150]">
+        <${AccountGridPicker} accounts=${accounts} onPick=${handleAccountPick} />
+      <//>
     </div>
-  );
+  `;
 };
 
-const Root = () => (
-  <ErrorBoundary>
-    <App />
-  </ErrorBoundary>
-);
+const Root = () => html`
+  <${ErrorBoundary}>
+    <${App} />
+  <//>
+`;
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<Root />);
+root.render(html`<${Root} />`);
 </script>
 </body>
 </html>
