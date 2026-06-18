@@ -624,17 +624,25 @@ const MonthlyCalendar = ({ accounts, transactions, getAccountById, onEditTransac
               <div key=${i} onClick=${() => info.txs.length > 0 && setSelectedDate(dateStr)} className=${`min-h-[75px] sm:min-h-[120px] p-0.5 sm:p-2 rounded-xl border transition-all flex flex-col min-w-0 ${info.txs.length > 0 ? 'cursor-pointer hover:border-indigo-400 hover:shadow-md bg-white border-slate-200' : 'bg-white border-slate-100'}`}>
                 <span className=${`font-bold text-[10px] sm:text-sm mb-1 ml-1 ${i % 7 === 0 ? 'text-red-400' : i % 7 === 6 ? 'text-blue-400' : 'text-slate-600'}`}>${d}</span>
                 <div className="flex-1 space-y-0.5 sm:space-y-1 mt-auto flex flex-col justify-end min-w-0 overflow-visible">
-                  ${info.revenue > 0 && html`
-                    <div className="w-full text-right text-[10px] sm:text-xs font-mono font-black text-emerald-600 bg-emerald-50/60 sm:bg-emerald-50 px-0.5 rounded leading-[1.1] sm:leading-normal overflow-visible flex justify-end">
+                  ${info.revenue !== 0 && html`
+                    <div className=${`w-full text-right text-[10px] sm:text-xs font-mono font-black px-0.5 rounded leading-[1.1] sm:leading-normal overflow-visible flex justify-end ${
+                      info.revenue > 0 
+                        ? 'text-emerald-600 bg-emerald-50/60 sm:bg-emerald-50' 
+                        : 'text-red-500 bg-red-50/60 sm:bg-red-50'
+                    }`}>
                       <div className="origin-right scale-[0.7] sm:scale-100 whitespace-nowrap">
-                        +${info.revenue.toLocaleString()}
+                        ${info.revenue > 0 ? '+' : ''}${info.revenue.toLocaleString()}
                       </div>
                     </div>
                   `}
-                  ${info.expense > 0 && html`
-                    <div className="w-full text-right text-[10px] sm:text-xs font-mono font-black text-red-500 bg-red-50/60 sm:bg-red-50 px-0.5 rounded leading-[1.1] sm:leading-normal overflow-visible flex justify-end">
+                  ${info.expense !== 0 && html`
+                    <div className=${`w-full text-right text-[10px] sm:text-xs font-mono font-black px-0.5 rounded leading-[1.1] sm:leading-normal overflow-visible flex justify-end ${
+                      info.expense > 0 
+                        ? 'text-red-500 bg-red-50/60 sm:bg-red-50' 
+                        : 'text-emerald-600 bg-emerald-50/60 sm:bg-emerald-50'
+                    }`}>
                       <div className="origin-right scale-[0.7] sm:scale-100 whitespace-nowrap">
-                        -${info.expense.toLocaleString()}
+                        ${info.expense > 0 ? '-' : '+'}${Math.abs(info.expense).toLocaleString()}
                       </div>
                     </div>
                   `}
