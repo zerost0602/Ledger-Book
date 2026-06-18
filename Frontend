@@ -1074,7 +1074,6 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
         </div>
       <//>
 
-      {/* Account Picker Modal */}
       <${Modal} isOpen=${activeBudgetPicker !== null} onClose=${() => setActiveBudgetPicker(null)} title="예산 설정 계정과목 선택" maxWidth="max-w-4xl" zIndex="z-[160]">
         <${AccountGridPicker} accounts=${accounts} onPick=${handleBudgetAccountPick} allowedCategories=${['expenses']} />
       <//>
