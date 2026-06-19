@@ -198,3 +198,7 @@ function ensureBudgets() {
   
   return budgets;
 }
+
+function ping() {
+  return "pong";
+}
