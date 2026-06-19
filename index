@@ -1118,6 +1118,34 @@ const App = () => {
   useEffect(() => { if (statusMessage) { const t = setTimeout(() => setStatusMessage(null), 3000); return () => clearTimeout(t); } }, [statusMessage]);
   useEffect(() => { setTimeout(() => lucide.createIcons(), 50); });
 
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        if (typeof google === 'undefined') return;
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Ping Timeout')), 3000)
+        );
+        const pingPromise = new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(reject)
+            .ping();
+        });
+        try {
+          await Promise.race([pingPromise, timeoutPromise]);
+          console.log('GAS Connection health check: OK');
+        } catch (e) {
+          console.warn('GAS Connection health check failed. Reloading...', e);
+          window.location.reload();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   const initialSetup = data.initialSetup;
   const accounts = data.accounts;
   const transactions = data.transactions;
