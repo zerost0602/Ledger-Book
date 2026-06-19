@@ -1497,17 +1497,26 @@ const App = () => {
               <div className="bg-white p-5 sm:p-8 flex flex-col text-slate-800">
                 <div className="flex-1">
                   <h3 className="text-sm sm:text-xl font-black text-red-500 border-b-2 border-red-500 pb-2 mb-4 sm:mb-6 uppercase tracking-widest text-center">Liabilities</h3>
-                  <div className="space-y-3 sm:space-y-4 mb-8 sm:mb-12">
+                  <div className="space-y-3 sm:space-y-4 mb-4">
                     ${accounts.liabilities.filter(a => a.name !== '이익잉여금' && (accountBalances[a.id] || 0) !== 0).map(acc => html`<div key=${acc.id} className="flex justify-between items-center"><span className="text-xs sm:text-base text-slate-600 font-medium">${acc.name}</span><span className="font-mono font-bold text-sm sm:text-lg">${Math.abs(accountBalances[acc.id] || 0).toLocaleString()}원</span></div>`)}
                   </div>
-                  <h3 className="text-[10px] sm:text-xs font-black text-emerald-600 border-b border-emerald-200 pb-2 mb-3 sm:mb-4 uppercase tracking-widest">Equity</h3>
-                  <div className="space-y-2 sm:space-y-3 font-bold">
+                  <div className="flex justify-between items-center border-t border-dashed border-slate-200 pt-2 mb-6 sm:mb-8 font-bold text-slate-700">
+                    <span className="text-xs sm:text-sm uppercase text-slate-500">Total Liabilities</span>
+                    <span className="font-mono text-sm sm:text-lg text-red-500">${totalLiabilitiesOnly.toLocaleString()}원</span>
+                  </div>
+                  
+                  <h3 className="text-sm sm:text-xl font-black text-emerald-600 border-b-2 border-emerald-500 pb-2 mb-4 sm:mb-6 uppercase tracking-widest text-center">Equity</h3>
+                  <div className="space-y-2 sm:space-y-3 font-bold mb-4">
                     <div className="flex justify-between items-center text-[11px] sm:text-sm"><span>자본금</span><span className="font-mono">${calculatedInitialCapital.toLocaleString()}원</span></div>
                     <div className="flex justify-between items-center bg-emerald-50 p-2 sm:p-3 rounded-xl border border-emerald-100 font-bold text-emerald-700"><span className="text-[10px] sm:text-xs">이익잉여금 (누적)</span><span className="font-mono text-xs sm:text-base">${retainedEarningsBalance.toLocaleString()}원</span></div>
                     <div className="flex justify-between items-center border-t border-slate-50 pt-3"><span className="text-slate-400 text-[10px] sm:text-xs italic">당기순손익 (미결산)</span><span className=${`font-mono text-xs sm:text-base font-bold ${unsettledNetIncome >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>${unsettledNetIncome.toLocaleString()}원</span></div>
                   </div>
+                  <div className="flex justify-between items-center border-t border-dashed border-slate-200 pt-2 mb-6 sm:mb-8 font-bold text-slate-700">
+                    <span className="text-xs sm:text-sm uppercase text-slate-500">Total Equity</span>
+                    <span className="font-mono text-sm sm:text-lg text-emerald-600">${currentEquity.toLocaleString()}원</span>
+                  </div>
                 </div>
-                <div className="mt-6 sm:mt-8 pt-4 border-t-2 border-slate-50 flex justify-between items-center font-black"><span className="text-xs sm:text-lg uppercase">Total L+E</span><span className="font-mono text-lg sm:text-2xl text-indigo-600">${(totalLiabilitiesOnly + currentEquity).toLocaleString()}원</span></div>
+                <div className="mt-6 sm:mt-8 pt-4 border-t-2 border-slate-50 flex justify-between items-center font-black"><span className="text-xs sm:text-lg uppercase">Total Liabilities & Equity</span><span className="font-mono text-lg sm:text-2xl text-indigo-600">${(totalLiabilitiesOnly + currentEquity).toLocaleString()}원</span></div>
               </div>
             </div>
           `}
