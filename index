@@ -535,33 +535,68 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
                   </div>
                 </div>
 
-                ${isExpanded && html`
-                  <div className="border-t border-slate-200 bg-white animate-in slide-in-from-top-2 duration-200">
-                    <div className="p-3">
-                      <table className="w-full text-left table-fixed">
-                        <thead className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest border-b border-slate-100 bg-slate-50">
-                          <tr>
-                            <th className="py-2 px-1.5 sm:px-3 rounded-tl-lg w-20 sm:w-32 whitespace-nowrap">날짜</th>
-                            <th className="py-2 px-1.5 sm:px-3">거래내용</th>
-                            <th className="py-2 px-1.5 sm:px-3 text-right rounded-tr-lg w-22 sm:w-28 whitespace-nowrap">금액</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                          ${data.lines.map((line, idx) => html`
-                            <tr key=${idx} onClick=${() => line.txId && onEditTransaction && onEditTransaction(line.txId)} className=${`transition ${line.txId && onEditTransaction ? 'cursor-pointer hover:bg-indigo-50 active:bg-indigo-100' : 'hover:bg-slate-50'}`}>
-                              <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-slate-500 font-mono text-[10px] sm:text-xs whitespace-nowrap truncate">${line.date}</td>
-                              <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-slate-700 font-bold text-[10px] sm:text-sm leading-tight" style=${{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
-                                ${line.memo || '내역 없음'}
-                                ${line.tag && html`<br /><span className="text-[9px] sm:text-xs text-slate-400 font-normal">#${line.tag}</span>`}
-                              </td>
-                              <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-right font-mono font-bold text-slate-800 text-[11px] sm:text-sm whitespace-nowrap">${line.amount.toLocaleString()}원</td>
-                            </tr>
+                ${isExpanded && (() => {
+                  const tagMap = {};
+                  let noTagTotal = 0;
+                  data.lines.forEach(line => {
+                    if (line.tag) {
+                      tagMap[line.tag] = (tagMap[line.tag] || 0) + line.amount;
+                    } else {
+                      noTagTotal += line.amount;
+                    }
+                  });
+                  const sortedTags = Object.keys(tagMap)
+                    .map(tag => ({ tag, amount: tagMap[tag] }))
+                    .sort((a, b) => b.amount - a.amount);
+                  return html`
+                    <div className="border-t border-slate-200 bg-white animate-in slide-in-from-top-2 duration-200">
+                      <div className="p-3 bg-slate-50/50 border-b flex flex-wrap gap-2 items-center justify-between text-xs font-bold text-slate-600">
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          <span className="text-[10px] text-slate-400 mr-1 uppercase tracking-wider">소분류 집계:</span>
+                          ${sortedTags.map(item => html`
+                            <span key=${item.tag} className="bg-indigo-50 border border-indigo-100 text-indigo-600 px-2.5 py-1 rounded-md text-[10px]">
+                              #${item.tag} <span className="font-mono text-[10px] text-indigo-500 font-extrabold">${item.amount.toLocaleString()}원</span>
+                            </span>
                           `)}
-                        </tbody>
-                      </table>
+                          ${noTagTotal !== 0 && html`
+                            <span className="bg-slate-100 border border-slate-200 text-slate-500 px-2.5 py-1 rounded-md text-[10px]">
+                              태그 미지정 <span className="font-mono text-[10px] text-slate-400 font-extrabold">${noTagTotal.toLocaleString()}원</span>
+                            </span>
+                          `}
+                          ${sortedTags.length === 0 && noTagTotal === 0 && html`
+                            <span className="text-slate-300 text-[10px] font-bold">집계할 데이터가 없습니다.</span>
+                          `}
+                        </div>
+                        <div className="text-[10px] sm:text-xs font-black text-slate-700 bg-white border px-3 py-1 rounded-lg shadow-sm">
+                          총액: <span className="font-mono text-indigo-600">${data.total.toLocaleString()}원</span>
+                        </div>
+                      </div>
+                      <div className="p-3">
+                        <table className="w-full text-left table-fixed">
+                          <thead className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest border-b border-slate-100 bg-slate-50">
+                            <tr>
+                              <th className="py-2 px-1.5 sm:px-3 rounded-tl-lg w-20 sm:w-32 whitespace-nowrap">날짜</th>
+                              <th className="py-2 px-1.5 sm:px-3">거래내용</th>
+                              <th className="py-2 px-1.5 sm:px-3 text-right rounded-tr-lg w-22 sm:w-28 whitespace-nowrap">금액</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50">
+                            ${data.lines.map((line, idx) => html`
+                              <tr key=${idx} onClick=${() => line.txId && onEditTransaction && onEditTransaction(line.txId)} className=${`transition ${line.txId && onEditTransaction ? 'cursor-pointer hover:bg-indigo-50 active:bg-indigo-100' : 'hover:bg-slate-50'}`}>
+                                <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-slate-500 font-mono text-[10px] sm:text-xs whitespace-nowrap truncate">${line.date}</td>
+                                <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-slate-700 font-bold text-[10px] sm:text-sm leading-tight" style=${{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
+                                  ${line.memo || '내역 없음'}
+                                  ${line.tag && html`<br /><span className="text-[9px] sm:text-xs text-slate-400 font-normal">#${line.tag}</span>`}
+                                </td>
+                                <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-right font-mono font-bold text-slate-800 text-[11px] sm:text-sm whitespace-nowrap">${line.amount.toLocaleString()}원</td>
+                              </tr>
+                            `)}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                `}
+                  `;
+                })()}
               </div>
             `;
           })}
