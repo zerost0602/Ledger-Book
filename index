@@ -75,6 +75,14 @@ const TrashIcon = () => html`
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
 `;
 
+const TagIcon = ({ className = 'w-4 h-4' }) => html`
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className=${className}><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"></path><path d="M7 7h.01"></path></svg>
+`;
+
+const XIcon = ({ className = 'w-3 h-3' }) => html`
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className=${className}><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+`;
+
 // --- 공통 아토믹 컴포넌트 ---
 const Button = ({ children, variant = 'primary', className = '', ...props }) => {
   const base = "flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-bold transition-all active:scale-95 shadow-sm text-sm";
@@ -160,11 +168,12 @@ const useAccounting = () => {
 
   const normalizeData = (rawData) => {
     const sortByName = (arr) => [...arr].sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
+    const sanitizeAccs = (arr) => sortByName(arr).map(a => ({ ...a, tags: a.tags || [] }));
     const accs = {
-      assets: sortByName(rawData.accounts?.assets || []),
-      liabilities: sortByName(rawData.accounts?.liabilities || []),
-      revenue: sortByName(rawData.accounts?.revenue || []),
-      expenses: sortByName(rawData.accounts?.expenses || [])
+      assets: sanitizeAccs(rawData.accounts?.assets || []),
+      liabilities: sanitizeAccs(rawData.accounts?.liabilities || []),
+      revenue: sanitizeAccs(rawData.accounts?.revenue || []),
+      expenses: sanitizeAccs(rawData.accounts?.expenses || [])
     };
     const allAccs = [...accs.assets, ...accs.liabilities, ...accs.revenue, ...accs.expenses];
     
@@ -183,8 +192,8 @@ const useAccounting = () => {
       accounts: accs,
       transactions: (rawData.transactions || []).map(tx => ({
         ...tx,
-        debits: tx.debits.map(d => ({ accountId: resolveId(d), amount: d.amount })),
-        credits: tx.credits.map(c => ({ accountId: resolveId(c), amount: c.amount }))
+        debits: tx.debits.map(d => ({ accountId: resolveId(d), amount: d.amount, tag: d.tag || '' })),
+        credits: tx.credits.map(c => ({ accountId: resolveId(c), amount: c.amount, tag: c.tag || '' }))
       })),
       budgets: rawData.budgets || {}
     };
@@ -212,73 +221,73 @@ const useAccounting = () => {
           },
           accounts: {
             assets: [
-              { id: 'a1', name: '보통예금', subtype: 'fixed' },
-              { id: 'a2', name: '현금', subtype: 'fixed' }
+              { id: 'a1', name: '보통예금', subtype: 'fixed', tags: ['이체', '저축'] },
+              { id: 'a2', name: '현금', subtype: 'fixed', tags: ['비상금'] }
             ],
             liabilities: [
-              { id: 'l1', name: '신용카드', subtype: 'variable' },
-              { id: 'e1', name: '이익잉여금', subtype: 'fixed' }
+              { id: 'l1', name: '신용카드', subtype: 'variable', tags: ['일시불', '할부'] },
+              { id: 'e1', name: '이익잉여금', subtype: 'fixed', tags: [] }
             ],
             revenue: [
-              { id: 'r1', name: '급여', subtype: 'fixed' },
-              { id: 'r2', name: '이자수익', subtype: 'variable' }
+              { id: 'r1', name: '급여', subtype: 'fixed', tags: ['기본급', '상여금'] },
+              { id: 'r2', name: '이자수익', subtype: 'variable', tags: [] }
             ],
             expenses: [
-              { id: 'x1', name: '식비', subtype: 'variable' },
-              { id: 'x2', name: '교통비', subtype: 'variable' },
-              { id: 'x3', name: '주거비', subtype: 'fixed' },
-              { id: 'x4', name: '통신비', subtype: 'fixed' }
+              { id: 'x1', name: '식비', subtype: 'variable', tags: ['외식', '식재료', '배달'] },
+              { id: 'x2', name: '교통비', subtype: 'variable', tags: ['지하철', '버스', '택시'] },
+              { id: 'x3', name: '주거비', subtype: 'fixed', tags: ['월세', '관리비'] },
+              { id: 'x4', name: '통신비', subtype: 'fixed', tags: ['휴대폰', '인터넷'] }
             ]
           },
           transactions: [
             {
               id: 'tx-1',
               date: `${currentMonth}-01`,
-              debits: [{ accountId: 'x3', amount: 500000 }],
-              credits: [{ accountId: 'a1', amount: 500000 }],
+              debits: [{ accountId: 'x3', amount: 500000, tag: '월세' }],
+              credits: [{ accountId: 'a1', amount: 500000, tag: '이체' }],
               memo: '월세 납부'
             },
             {
               id: 'tx-2',
               date: `${currentMonth}-02`,
-              debits: [{ accountId: 'x1', amount: 12000 }],
-              credits: [{ accountId: 'l1', amount: 12000 }],
+              debits: [{ accountId: 'x1', amount: 12000, tag: '외식' }],
+              credits: [{ accountId: 'l1', amount: 12000, tag: '일시불' }],
               memo: '점심 식사'
             },
             {
               id: 'tx-3',
               date: `${currentMonth}-03`,
-              debits: [{ accountId: 'x1', amount: 45000 }],
-              credits: [{ accountId: 'l1', amount: 45000 }],
+              debits: [{ accountId: 'x1', amount: 45000, tag: '식재료' }],
+              credits: [{ accountId: 'l1', amount: 45000, tag: '일시불' }],
               memo: '마트 장보기'
             },
             {
               id: 'tx-4',
               date: `${currentMonth}-04`,
-              debits: [{ accountId: 'x2', amount: 65000 }],
-              credits: [{ accountId: 'a1', amount: 65000 }],
+              debits: [{ accountId: 'x2', amount: 65000, tag: '지하철' }],
+              credits: [{ accountId: 'a1', amount: 65000, tag: '이체' }],
               memo: '교통카드 충전'
             },
             {
               id: 'tx-5',
               date: `${currentMonth}-05`,
-              debits: [{ accountId: 'a1', amount: 2500000 }],
-              credits: [{ accountId: 'r1', amount: 2500000 }],
+              debits: [{ accountId: 'a1', amount: 2500000, tag: '이체' }],
+              credits: [{ accountId: 'r1', amount: 2500000, tag: '기본급' }],
               memo: '월급 입금'
             },
             // Last month transactions
             {
               id: 'tx-6',
               date: `${lastMonth}-01`,
-              debits: [{ accountId: 'x3', amount: 500000 }],
-              credits: [{ accountId: 'a1', amount: 500000 }],
+              debits: [{ accountId: 'x3', amount: 500000, tag: '월세' }],
+              credits: [{ accountId: 'a1', amount: 500000, tag: '이체' }],
               memo: '지난달 월세 납부'
             },
             {
               id: 'tx-7',
               date: `${lastMonth}-15`,
-              debits: [{ accountId: 'x1', amount: 250000 }],
-              credits: [{ accountId: 'l1', amount: 250000 }],
+              debits: [{ accountId: 'x1', amount: 250000, tag: '외식' }],
+              credits: [{ accountId: 'l1', amount: 250000, tag: '일시불' }],
               memo: '외식비 통합 지출'
             }
           ],
@@ -415,7 +424,7 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
         if (targetAccountIds.includes(d.accountId)) {
           if (!map[d.accountId]) map[d.accountId] = { total: 0, lines: [] };
           const amt = reportType === 'revenue' ? -d.amount : d.amount;
-          map[d.accountId].lines.push({ txId: tx.id, date: tx.date, memo: tx.memo, amount: amt });
+          map[d.accountId].lines.push({ txId: tx.id, date: tx.date, memo: tx.memo, amount: amt, tag: d.tag || '' });
           map[d.accountId].total += amt;
           totalVal += amt;
         }
@@ -424,7 +433,7 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
         if (targetAccountIds.includes(c.accountId)) {
           if (!map[c.accountId]) map[c.accountId] = { total: 0, lines: [] };
           const amt = reportType === 'revenue' ? c.amount : -c.amount;
-          map[c.accountId].lines.push({ txId: tx.id, date: tx.date, memo: tx.memo, amount: amt });
+          map[c.accountId].lines.push({ txId: tx.id, date: tx.date, memo: tx.memo, amount: amt, tag: c.tag || '' });
           map[c.accountId].total += amt;
           totalVal += amt;
         }
@@ -533,7 +542,10 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
                           ${data.lines.map((line, idx) => html`
                             <tr key=${idx} onClick=${() => line.txId && onEditTransaction && onEditTransaction(line.txId)} className=${`transition ${line.txId && onEditTransaction ? 'cursor-pointer hover:bg-indigo-50 active:bg-indigo-100' : 'hover:bg-slate-50'}`}>
                               <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-slate-500 font-mono text-[10px] sm:text-xs whitespace-nowrap truncate">${line.date}</td>
-                              <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-slate-700 font-bold text-[10px] sm:text-sm leading-tight" style=${{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}>${line.memo || '내역 없음'}</td>
+                              <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-slate-700 font-bold text-[10px] sm:text-sm leading-tight" style=${{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
+                                ${line.memo || '내역 없음'}
+                                ${line.tag && html`<br /><span className="text-[9px] sm:text-xs text-slate-400 font-normal">#${line.tag}</span>`}
+                              </td>
                               <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-right font-mono font-bold text-slate-800 text-[11px] sm:text-sm whitespace-nowrap">${line.amount.toLocaleString()}원</td>
                             </tr>
                           `)}
@@ -1115,6 +1127,41 @@ const App = () => {
   const [searchDateRange, setSearchDateRange] = useState({ start: '', end: '' });
   const [isSavingEntry, setIsSavingEntry] = useState(false);
 
+  const [selectedAccountForTag, setSelectedAccountForTag] = useState(null);
+
+  const handleAddTag = (category, accountId, tagText) => {
+    const text = tagText.trim();
+    if (!text) return;
+    setData(prev => {
+      const newAccounts = { ...prev.accounts };
+      newAccounts[category] = newAccounts[category].map(a => {
+        if (String(a.id) === String(accountId)) {
+          const tags = a.tags || [];
+          if (tags.includes(text)) return a;
+          return { ...a, tags: [...tags, text] };
+        }
+        return a;
+      });
+      return { ...prev, accounts: newAccounts };
+    });
+    setIsDirty(true);
+  };
+
+  const handleRemoveTag = (category, accountId, tagText) => {
+    setData(prev => {
+      const newAccounts = { ...prev.accounts };
+      newAccounts[category] = newAccounts[category].map(a => {
+        if (String(a.id) === String(accountId)) {
+          const tags = a.tags || [];
+          return { ...a, tags: tags.filter(t => t !== tagText) };
+        }
+        return a;
+      });
+      return { ...prev, accounts: newAccounts };
+    });
+    setIsDirty(true);
+  };
+
   useEffect(() => { if (statusMessage) { const t = setTimeout(() => setStatusMessage(null), 3000); return () => clearTimeout(t); } }, [statusMessage]);
   useEffect(() => { setTimeout(() => lucide.createIcons(), 50); });
 
@@ -1276,13 +1323,13 @@ const App = () => {
       const newTransaction = {
         id: editingTransaction ? editingTransaction.id : `T-${Date.now()}`,
         date: entryRows.date,
-        debits: entryRows.debits.filter(d => d.accountId && d.amount > 0),
-        credits: entryRows.credits.filter(c => c.accountId && c.amount > 0),
+        debits: entryRows.debits.filter(d => d.accountId && d.amount > 0).map(d => ({ accountId: d.accountId, amount: d.amount, tag: d.tag || '' })),
+        credits: entryRows.credits.filter(c => c.accountId && c.amount > 0).map(c => ({ accountId: c.accountId, amount: c.amount, tag: c.tag || '' })),
         memo: entryRows.memo || '거래 내역'
       };
       await saveTransaction(newTransaction);
       setIsEntryModalOpen(false); setEditingTransaction(null);
-      setEntryRows({ date: new Date().toISOString().split('T')[0], debits: [{ accountId: '', amount: 0 }], credits: [{ accountId: '', amount: 0 }], memo: '' });
+      setEntryRows({ date: new Date().toISOString().split('T')[0], debits: [{ accountId: '', amount: 0, tag: '' }], credits: [{ accountId: '', amount: 0, tag: '' }], memo: '' });
     } finally {
       setIsSavingEntry(false);
     }
@@ -1376,7 +1423,13 @@ const App = () => {
     const { type, index } = activePicker;
     if (type === 'setupDebits') setData(prev => { const n = [...prev.initialSetup.debits]; n[index].accountId = id; return { ...prev, initialSetup: { ...prev.initialSetup, debits: n } }; });
     else if (type === 'setupCredits') setData(prev => { const n = [...prev.initialSetup.credits]; n[index].accountId = id; return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; });
-    else handleUpdateEntryRow(type, index, 'accountId', id);
+    else {
+      setEntryRows(prev => {
+        const newRows = [...prev[type]];
+        newRows[index] = { ...newRows[index], accountId: id, tag: '' };
+        return { ...prev, [type]: newRows };
+      });
+    }
     setActivePicker(null); setIsDirty(true);
   };
 
@@ -1397,8 +1450,8 @@ const App = () => {
       if (!term) return true;
       if (t.memo && t.memo.toLowerCase().includes(term)) return true;
       if (t.date.includes(term)) return true;
-      const dMatch = t.debits.some(d => getAccountById(d.accountId)?.name.toLowerCase().includes(term));
-      const cMatch = t.credits.some(c => getAccountById(c.accountId)?.name.toLowerCase().includes(term));
+      const dMatch = t.debits.some(d => (getAccountById(d.accountId)?.name.toLowerCase().includes(term)) || (d.tag && d.tag.toLowerCase().includes(term)));
+      const cMatch = t.credits.some(c => (getAccountById(c.accountId)?.name.toLowerCase().includes(term)) || (c.tag && c.tag.toLowerCase().includes(term)));
       return dMatch || cMatch;
     }).sort((a,b) => b.date.localeCompare(a.date));
   }, [transactions, searchTerm, searchDateRange, getAccountById]);
@@ -1623,7 +1676,7 @@ const App = () => {
       <${Modal} isOpen=${isSettingsModalOpen} onClose=${() => setIsSettingsModalOpen(false)} title="더블북 환경 설정" maxWidth="max-w-5xl" zIndex="z-[100]">
         <div className="flex flex-col md:flex-row gap-4 h-[78vh] md:h-[650px] overflow-hidden text-slate-800">
           <div className="flex md:flex-col overflow-x-auto pb-1 md:pb-0 gap-1.5 w-full md:w-48 shrink-0">
-            ${[{ id: 'equity', label: '자본금', icon: 'coins' }, { id: 'accounts', label: '계정과목', icon: 'settings' }, { id: 'editTransactions', label: '거래 관리', icon: 'edit-3' }].map(tab => html`
+            ${[{ id: 'equity', label: '자본금', icon: 'coins' }, { id: 'accounts', label: '계정과목', icon: 'settings' }, { id: 'tags', label: '태그 관리', icon: 'tag' }, { id: 'editTransactions', label: '거래 관리', icon: 'edit-3' }].map(tab => html`
               <button key=${tab.id} onClick=${() => setSettingsTab(tab.id)} className=${`flex items-center justify-center md:justify-start gap-2 p-3 sm:p-4 rounded-xl font-bold transition-all flex-1 md:flex-none text-xs sm:text-sm whitespace-nowrap ${settingsTab === tab.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}><i data-lucide=${tab.icon} className="w-4 h-4"></i>${tab.label}</button>
             `)}
             ${isDirty && html`
@@ -1741,6 +1794,100 @@ const App = () => {
                 </div>
               </div>
             `}
+            ${settingsTab === 'tags' && html`
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-black uppercase tracking-widest text-slate-800 ml-1">태그 관리</h4>
+                  <p className="text-[10px] text-slate-400 ml-1 mt-0.5">각 계정과목별로 거래 세부항목 분류를 위한 태그를 지정하세요.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-10">
+                  <div className="md:col-span-1 bg-slate-50 p-4 rounded-2xl border shadow-inner max-h-[450px] overflow-y-auto modal-scroll text-slate-800">
+                    <div className="text-[9px] uppercase text-indigo-500 font-black mb-3 tracking-widest">계정과목 선택</div>
+                    <div className="space-y-4">
+                      ${['assets', 'liabilities', 'revenue', 'expenses'].map(cat => html`
+                        <div key=${cat} className="space-y-1">
+                          <div className="text-[8px] font-black text-slate-400 uppercase tracking-wider">${cat === 'assets' ? '자산 (Assets)' : cat === 'liabilities' ? '부채/자본 (Liabilities)' : cat === 'revenue' ? '수익 (Revenue)' : '비용 (Expenses)'}</div>
+                          ${(accounts[cat] || []).filter(a => a.name !== '이익잉여금').map(a => html`
+                            <button
+                              key=${a.id}
+                              onClick=${() => setSelectedAccountForTag({ category: cat, id: a.id })}
+                              className=${"w-full text-left p-2.5 rounded-xl text-xs font-bold transition-all " + (selectedAccountForTag && selectedAccountForTag.id === a.id ? "bg-indigo-600 text-white shadow-sm" : "bg-white hover:bg-slate-100 text-slate-700 border border-slate-100 shadow-sm")}
+                            >
+                              ${a.name}
+                            </button>
+                          `)}
+                        </div>
+                      `)}
+                    </div>
+                  </div>
+                  
+                  <div className="md:col-span-2 bg-white p-4 rounded-2xl border shadow-sm min-h-[300px] flex flex-col justify-between text-slate-800">
+                    ${selectedAccountForTag ? html`
+                      <div className="flex-1 flex flex-col">
+                        <div className="flex justify-between items-center border-b pb-3 mb-4">
+                          <h5 className="font-black text-indigo-600 text-xs sm:text-sm">
+                            [${getAccountById(selectedAccountForTag.id)?.name}] 태그 목록
+                          </h5>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                            태그: ${(getAccountById(selectedAccountForTag.id)?.tags || []).length}개
+                          </span>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2 mb-6 flex-1 content-start">
+                          ${(getAccountById(selectedAccountForTag.id)?.tags || []).length === 0 ? html`
+                            <div className="flex flex-col items-center justify-center py-10 w-full text-slate-300 gap-1.5">
+                              <${TagIcon} className="w-5 h-5 text-slate-300" />
+                              <p className="text-[10px] font-bold">등록된 태그가 없습니다. 아래에서 새 태그를 추가하세요.</p>
+                            </div>
+                          ` : (getAccountById(selectedAccountForTag.id)?.tags || []).map(tag => html`
+                            <span key=${tag} className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 px-3 py-1.5 rounded-full text-xs font-black shadow-sm">
+                              #${tag}
+                              <button onClick=${() => handleRemoveTag(selectedAccountForTag.category, selectedAccountForTag.id, tag)} className="text-indigo-400 hover:text-red-500 transition-colors p-0.5">
+                                <${XIcon} className="w-3 h-3 text-indigo-400 hover:text-red-500" />
+                              </button>
+                            </span>
+                          `)}
+                        </div>
+                      </div>
+                      
+                      <div className="border-t pt-4">
+                        <div className="flex gap-2">
+                          <input
+                            id="new-tag-input"
+                            type="text"
+                            placeholder="새 태그 이름 입력 후 Enter (예: 외식, 배달)"
+                            className="flex-1 p-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                            onKeyDown=${(e) => {
+                              if (e.key === 'Enter') {
+                                handleAddTag(selectedAccountForTag.category, selectedAccountForTag.id, e.target.value);
+                                e.target.value = '';
+                              }
+                            }}
+                          />
+                          <button
+                            onClick=${() => {
+                              const input = document.getElementById('new-tag-input');
+                              if (input && input.value.trim()) {
+                                handleAddTag(selectedAccountForTag.category, selectedAccountForTag.id, input.value);
+                                input.value = '';
+                              }
+                            }}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-sm active:scale-95"
+                          >
+                            추가
+                          </button>
+                        </div>
+                      </div>
+                    ` : html`
+                      <div className="flex flex-col items-center justify-center h-full text-slate-300 gap-2 py-20 flex-1">
+                        <${TagIcon} className="w-8 h-8 text-slate-300" />
+                        <p className="text-xs font-bold">왼쪽 목록에서 계정과목을 선택하여 태그를 관리하세요.</p>
+                      </div>
+                    `}
+                  </div>
+                </div>
+              </div>
+            `}
             ${settingsTab === 'editTransactions' && html`
               <div className="space-y-4 pb-10">
                 <div className="flex items-center gap-2 mb-4 bg-white p-3 rounded-xl border border-slate-100 text-slate-800 font-bold overflow-x-auto">
@@ -1777,14 +1924,32 @@ const App = () => {
               <div className="bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden">
                 <div className="bg-indigo-600 text-white p-2 font-black text-center text-[10px] uppercase">Debit (차변)</div>
                 <div className="p-3 space-y-2 min-h-[120px] sm:min-h-[250px] flex-1">
-                  ${entryRows.debits.map((r, i) => html`
-                    <div key=${i} className="flex gap-1.5 items-center animate-in slide-in-from-left-2">
-                      <button onClick=${() => setActivePicker({ type: 'debits', index: i })} className="flex-1 p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate active:bg-indigo-50">${r.accountId ? getAccountById(r.accountId).name : '계정 선택'}</button>
-                      <input type="number" className="w-20 sm:w-28 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-xs outline-none" placeholder="0" value=${r.amount || ''} onChange=${(e) => handleUpdateEntryRow('debits', i, 'amount', Number(e.target.value))} />
-                      <button onClick=${()=>{const n=[...entryRows.debits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, debits:n}));}}} className="text-slate-300 hover:text-red-500 p-1"><${TrashIcon}/></button>
-                    </div>
-                  `)}
-                  <button onClick=${() => setEntryRows(prev => ({...prev, debits: [...prev.debits, {accountId:'', amount:0}]}))} className="w-full p-2 mt-1 text-[10px] font-black text-indigo-500 border border-dashed border-indigo-200 rounded-lg hover:bg-indigo-50">+ 행 추가</button>
+                  ${entryRows.debits.map((r, i) => {
+                    const account = r.accountId ? getAccountById(r.accountId) : null;
+                    const availableTags = [...(account?.tags || [])];
+                    if (r.tag && !availableTags.includes(r.tag)) {
+                      availableTags.push(r.tag);
+                    }
+                    return html`
+                      <div key=${i} className="flex gap-1.5 items-center animate-in slide-in-from-left-2">
+                        <button onClick=${() => setActivePicker({ type: 'debits', index: i })} className="flex-1 min-w-[70px] p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate active:bg-indigo-50">${account ? account.name : '계정 선택'}</button>
+                        <select 
+                          value=${r.tag || ''} 
+                          onChange=${(e) => handleUpdateEntryRow('debits', i, 'tag', e.target.value)}
+                          disabled=${!r.accountId}
+                          className="w-24 sm:w-28 p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold outline-none text-slate-700 disabled:opacity-50"
+                        >
+                          <option value="">태그 없음</option>
+                          ${availableTags.map(t => html`
+                            <option key=${t} value=${t}>${t}</option>
+                          `)}
+                        </select>
+                        <input type="number" className="w-20 sm:w-24 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-xs outline-none" placeholder="0" value=${r.amount || ''} onChange=${(e) => handleUpdateEntryRow('debits', i, 'amount', Number(e.target.value))} />
+                        <button onClick=${()=>{const n=[...entryRows.debits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, debits:n}));}}} className="text-slate-300 hover:text-red-500 p-1"><${TrashIcon}/></button>
+                      </div>
+                    `;
+                  })}
+                  <button onClick=${() => setEntryRows(prev => ({...prev, debits: [...prev.debits, {accountId:'', amount:0, tag:''}]}))} className="w-full p-2 mt-1 text-[10px] font-black text-indigo-500 border border-dashed border-indigo-200 rounded-lg hover:bg-indigo-50">+ 행 추가</button>
                 </div>
                 <div className="bg-slate-50 p-2.5 flex justify-between items-center font-black border-t text-xs sm:text-base">
                   <span className="text-[9px] uppercase text-slate-400">Total Debit</span>
@@ -1799,14 +1964,32 @@ const App = () => {
               <div className="bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden">
                 <div className="bg-red-500 text-white p-2 font-black text-center text-[10px] uppercase">Credit (대변)</div>
                 <div className="p-3 space-y-2 min-h-[120px] sm:min-h-[250px] flex-1">
-                  ${entryRows.credits.map((r, i) => html`
-                    <div key=${i} className="flex gap-1.5 items-center animate-in slide-in-from-right-2">
-                      <button onClick=${() => setActivePicker({ type: 'credits', index: i })} className="flex-1 p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate active:bg-red-50">${r.accountId ? getAccountById(r.accountId).name : '계정 선택'}</button>
-                      <input type="number" className="w-20 sm:w-28 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-xs outline-none" placeholder="0" value=${r.amount || ''} onChange=${(e) => handleUpdateEntryRow('credits', i, 'amount', Number(e.target.value))} />
-                      <button onClick=${()=>{const n=[...entryRows.credits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, credits:n}));}}} className="text-slate-300 hover:text-red-500 p-1"><${TrashIcon}/></button>
-                    </div>
-                  `)}
-                  <button onClick=${() => setEntryRows(prev => ({...prev, credits: [...prev.credits, {accountId:'', amount:0}]}))} className="w-full p-2 mt-1 text-[10px] font-black text-red-500 border border-dashed border-red-200 rounded-lg hover:bg-red-50">+ 행 추가</button>
+                  ${entryRows.credits.map((r, i) => {
+                    const account = r.accountId ? getAccountById(r.accountId) : null;
+                    const availableTags = [...(account?.tags || [])];
+                    if (r.tag && !availableTags.includes(r.tag)) {
+                      availableTags.push(r.tag);
+                    }
+                    return html`
+                      <div key=${i} className="flex gap-1.5 items-center animate-in slide-in-from-right-2">
+                        <button onClick=${() => setActivePicker({ type: 'credits', index: i })} className="flex-1 min-w-[70px] p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate active:bg-red-50">${account ? account.name : '계정 선택'}</button>
+                        <select 
+                          value=${r.tag || ''} 
+                          onChange=${(e) => handleUpdateEntryRow('credits', i, 'tag', e.target.value)}
+                          disabled=${!r.accountId}
+                          className="w-24 sm:w-28 p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold outline-none text-slate-700 disabled:opacity-50"
+                        >
+                          <option value="">태그 없음</option>
+                          ${availableTags.map(t => html`
+                            <option key=${t} value=${t}>${t}</option>
+                          `)}
+                        </select>
+                        <input type="number" className="w-20 sm:w-24 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-xs outline-none" placeholder="0" value=${r.amount || ''} onChange=${(e) => handleUpdateEntryRow('credits', i, 'amount', Number(e.target.value))} />
+                        <button onClick=${()=>{const n=[...entryRows.credits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, credits:n}));}}} className="text-slate-300 hover:text-red-500 p-1"><${TrashIcon}/></button>
+                      </div>
+                    `;
+                  })}
+                  <button onClick=${() => setEntryRows(prev => ({...prev, credits: [...prev.credits, {accountId:'', amount:0, tag:''}]}))} className="w-full p-2 mt-1 text-[10px] font-black text-red-500 border border-dashed border-red-200 rounded-lg hover:bg-red-50">+ 행 추가</button>
                 </div>
                 <div className="bg-slate-50 p-2.5 flex justify-between items-center font-black border-t text-xs sm:text-base">
                   <span className="text-[9px] uppercase text-slate-400">Total Credit</span>
