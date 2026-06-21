@@ -450,17 +450,142 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
 
     const activeAccountIds = Object.keys(map)
       .filter(accId => map[accId].lines.length > 0)
-      .sort((a, b) => map[b].total - map[a].total);
+      .sort((a, b) => {
+        const accA = getAccountById(a);
+        const accB = getAccountById(b);
+        const subA = accA.subtype || 'variable';
+        const subB = accB.subtype || 'variable';
+
+        if (subA !== subB) {
+          return subA === 'fixed' ? -1 : 1;
+        }
+        return map[b].total - map[a].total;
+      });
 
     activeAccountIds.forEach(accId => {
       map[accId].lines.sort((a, b) => a.date.localeCompare(b.date));
     });
 
-    return { map, activeAccountIds, totalVal };
-  }, [transactions, targetMonth, targetAccountIds, reportType]);
+    // 고정과 변동 그룹 분리 및 소계 산출
+    let fixedTotal = 0;
+    let variableTotal = 0;
+    const fixedAccountIds = [];
+    const variableAccountIds = [];
+
+    activeAccountIds.forEach(accId => {
+      const acc = getAccountById(accId);
+      const sub = acc.subtype || 'variable';
+      if (sub === 'fixed') {
+        fixedAccountIds.push(accId);
+        fixedTotal += map[accId].total;
+      } else {
+        variableAccountIds.push(accId);
+        variableTotal += map[accId].total;
+      }
+    });
+
+    return { map, activeAccountIds, fixedAccountIds, variableAccountIds, totalVal, fixedTotal, variableTotal };
+  }, [transactions, targetMonth, targetAccountIds, reportType, getAccountById]);
 
   const toggleAccordion = (accountId) => {
     setExpandedAccounts(prev => ({ ...prev, [accountId]: !prev[accountId] }));
+  };
+
+  useEffect(() => {
+    setTimeout(() => { if (window.lucide) window.lucide.createIcons(); }, 100);
+  }, [targetMonth, reportType, expandedAccounts]);
+
+  const renderAccountCard = (accountId) => {
+    const isExpanded = !!expandedAccounts[accountId];
+    const data = reportData.map[accountId];
+    const account = getAccountById(accountId);
+    const accountName = account.name;
+    const subtype = account.subtype || 'variable';
+
+    return html`
+      <div key=${accountId} className="border border-slate-200 rounded-xl overflow-hidden transition-all shadow-sm">
+        <div onClick=${() => toggleAccordion(accountId)} className="flex justify-between items-center p-3 sm:p-4 bg-slate-50 hover:bg-slate-100 cursor-pointer transition select-none">
+          <div className="font-extrabold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+            <span className=${`px-2 py-0.5 rounded-md text-[10px] font-black ${reportType === 'revenue' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
+              ${reportType === 'revenue' ? '수익' : '비용'}
+            </span>
+            <span className=${`px-2 py-0.5 rounded-md text-[10px] font-black ${subtype === 'fixed' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+              ${subtype === 'fixed' ? '고정' : '변동'}
+            </span>
+            ${accountName}
+          </div>
+          <div className="flex items-center gap-4 text-sm">
+            <span className="font-mono font-black text-slate-800">${data.total.toLocaleString()}원</span>
+            <div className="w-6 flex justify-end text-slate-400">
+              ${isExpanded ? html`<i data-lucide="chevron-up" className="w-4 h-4"></i>` : html`<i data-lucide="chevron-down" className="w-4 h-4"></i>`}
+            </div>
+          </div>
+        </div>
+
+        ${isExpanded && (() => {
+          const tagMap = {};
+          let noTagTotal = 0;
+          data.lines.forEach(line => {
+            if (line.tag) {
+              tagMap[line.tag] = (tagMap[line.tag] || 0) + line.amount;
+            } else {
+              noTagTotal += line.amount;
+            }
+          });
+          const sortedTags = Object.keys(tagMap)
+            .map(tag => ({ tag, amount: tagMap[tag] }))
+            .sort((a, b) => b.amount - a.amount);
+          return html`
+            <div className="border-t border-slate-200 bg-white animate-in slide-in-from-top-2 duration-200">
+              <div className="p-3 bg-slate-50/50 border-b flex flex-wrap gap-2 items-center justify-between text-xs font-bold text-slate-600">
+                <div className="flex flex-wrap gap-1.5 items-center">
+                  <span className="text-[10px] text-slate-400 mr-1 uppercase tracking-wider">소분류 집계:</span>
+                  ${sortedTags.map(item => html`
+                    <span key=${item.tag} className="bg-indigo-50 border border-indigo-100 text-indigo-600 px-2.5 py-1 rounded-md text-[10px]">
+                      #${item.tag} <span className="font-mono text-[10px] text-indigo-500 font-extrabold">${item.amount.toLocaleString()}원</span>
+                    </span>
+                  `)}
+                  ${noTagTotal !== 0 && html`
+                    <span className="bg-slate-100 border border-slate-200 text-slate-500 px-2.5 py-1 rounded-md text-[10px]">
+                      태그 미지정 <span className="font-mono text-[10px] text-slate-400 font-extrabold">${noTagTotal.toLocaleString()}원</span>
+                    </span>
+                  `}
+                  ${sortedTags.length === 0 && noTagTotal === 0 && html`
+                    <span className="text-slate-300 text-[10px] font-bold">집계할 데이터가 없습니다.</span>
+                  `}
+                </div>
+                <div className="text-[10px] sm:text-xs font-black text-slate-700 bg-white border px-3 py-1 rounded-lg shadow-sm">
+                  총액: <span className="font-mono text-indigo-600">${data.total.toLocaleString()}원</span>
+                </div>
+              </div>
+              <div className="p-3">
+                <table className="w-full text-left table-fixed">
+                  <thead className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest border-b border-slate-100 bg-slate-50">
+                    <tr>
+                      <th className="py-2 px-1.5 sm:px-3 rounded-tl-lg w-20 sm:w-32 whitespace-nowrap">날짜</th>
+                      <th className="py-2 px-1.5 sm:px-3">거래내용</th>
+                      <th className="py-2 px-1.5 sm:px-3 text-right rounded-tr-lg w-22 sm:w-28 whitespace-nowrap">금액</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    ${data.lines.map((line, idx) => html`
+                      <tr key=${idx} onClick=${() => line.txId && onEditTransaction && onEditTransaction(line.txId)} className=${`transition ${line.txId && onEditTransaction ? 'cursor-pointer hover:bg-indigo-50 active:bg-indigo-100' : 'hover:bg-slate-50'}`}>
+                        <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-slate-500 font-mono text-[10px] sm:text-xs whitespace-nowrap truncate">${line.date}</td>
+                        <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-slate-700 font-bold text-[10px] sm:text-sm leading-tight" style=${{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
+                          ${line.memo || '내역 없음'}
+                          ${line.tag && html`<br /><span className="text-[9px] sm:text-xs text-slate-400 font-normal">#${line.tag}</span>`}
+                        </td>
+                        <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-right font-mono font-bold text-slate-800 text-[11px] sm:text-sm whitespace-nowrap">${line.amount.toLocaleString()}원</td>
+                      </tr>
+                    `)}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        })()}
+      </div>
+    `;
   };
 
   return html`
@@ -491,8 +616,8 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
         </div>
       </div>
 
-      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-        <div className="flex justify-between items-center mb-4 border-b-2 pb-2 transition-all duration-300" style=${{ borderColor: reportType === 'revenue' ? '#10b981' : '#f97316' }}>
+      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+        <div className="flex justify-between items-center mb-2 border-b-2 pb-2 transition-all duration-300" style=${{ borderColor: reportType === 'revenue' ? '#10b981' : '#f97316' }}>
           <h3 className="text-sm sm:text-base font-bold text-slate-700 uppercase tracking-widest">
             ${reportType === 'revenue' ? '수익 계정과목별 상세내역' : '비용 계정과목별 상세내역'}
           </h3>
@@ -506,101 +631,45 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
           </div>
         </div>
 
-        ${reportData.activeAccountIds.length === 0 && html`
+        ${reportData.activeAccountIds.length === 0 ? html`
           <p className="text-slate-400 text-sm text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
             해당 월에 발생한 ${reportType === 'revenue' ? '수익' : '지출'} 내역이 없습니다.
           </p>
-        `}
-
-        <div className="space-y-3">
-          ${reportData.activeAccountIds.map(accountId => {
-            const isExpanded = !!expandedAccounts[accountId];
-            const data = reportData.map[accountId];
-            const accountName = getAccountById(accountId).name;
-
-            return html`
-              <div key=${accountId} className="border border-slate-200 rounded-xl overflow-hidden transition-all shadow-sm">
-                <div onClick=${() => toggleAccordion(accountId)} className="flex justify-between items-center p-3 sm:p-4 bg-slate-50 hover:bg-slate-100 cursor-pointer transition select-none">
-                  <div className="font-extrabold text-slate-800 text-sm sm:text-base flex items-center gap-2">
-                    <span className=${`px-2 py-0.5 rounded-md text-[10px] font-black ${reportType === 'revenue' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
-                      ${reportType === 'revenue' ? '수익' : '비용'}
-                    </span>
-                    ${accountName}
-                  </div>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="font-mono font-black text-slate-800">${data.total.toLocaleString()}원</span>
-                    <div className="w-6 flex justify-end text-slate-400">
-                      ${isExpanded ? html`<i data-lucide="chevron-up" className="w-4 h-4"></i>` : html`<i data-lucide="chevron-down" className="w-4 h-4"></i>`}
-                    </div>
-                  </div>
+        ` : html`
+          <div className="space-y-6">
+            ${reportData.fixedAccountIds.length > 0 && html`
+              <div className="space-y-3">
+                <div className="flex justify-between items-center px-1 border-b border-slate-100 pb-1.5">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-wider">
+                    ${reportType === 'revenue' ? '고정 수익' : '고정 비용'}
+                  </span>
+                  <span className="text-xs font-mono font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                    소계: ${reportData.fixedTotal.toLocaleString()}원
+                  </span>
                 </div>
-
-                ${isExpanded && (() => {
-                  const tagMap = {};
-                  let noTagTotal = 0;
-                  data.lines.forEach(line => {
-                    if (line.tag) {
-                      tagMap[line.tag] = (tagMap[line.tag] || 0) + line.amount;
-                    } else {
-                      noTagTotal += line.amount;
-                    }
-                  });
-                  const sortedTags = Object.keys(tagMap)
-                    .map(tag => ({ tag, amount: tagMap[tag] }))
-                    .sort((a, b) => b.amount - a.amount);
-                  return html`
-                    <div className="border-t border-slate-200 bg-white animate-in slide-in-from-top-2 duration-200">
-                      <div className="p-3 bg-slate-50/50 border-b flex flex-wrap gap-2 items-center justify-between text-xs font-bold text-slate-600">
-                        <div className="flex flex-wrap gap-1.5 items-center">
-                          <span className="text-[10px] text-slate-400 mr-1 uppercase tracking-wider">소분류 집계:</span>
-                          ${sortedTags.map(item => html`
-                            <span key=${item.tag} className="bg-indigo-50 border border-indigo-100 text-indigo-600 px-2.5 py-1 rounded-md text-[10px]">
-                              #${item.tag} <span className="font-mono text-[10px] text-indigo-500 font-extrabold">${item.amount.toLocaleString()}원</span>
-                            </span>
-                          `)}
-                          ${noTagTotal !== 0 && html`
-                            <span className="bg-slate-100 border border-slate-200 text-slate-500 px-2.5 py-1 rounded-md text-[10px]">
-                              태그 미지정 <span className="font-mono text-[10px] text-slate-400 font-extrabold">${noTagTotal.toLocaleString()}원</span>
-                            </span>
-                          `}
-                          ${sortedTags.length === 0 && noTagTotal === 0 && html`
-                            <span className="text-slate-300 text-[10px] font-bold">집계할 데이터가 없습니다.</span>
-                          `}
-                        </div>
-                        <div className="text-[10px] sm:text-xs font-black text-slate-700 bg-white border px-3 py-1 rounded-lg shadow-sm">
-                          총액: <span className="font-mono text-indigo-600">${data.total.toLocaleString()}원</span>
-                        </div>
-                      </div>
-                      <div className="p-3">
-                        <table className="w-full text-left table-fixed">
-                          <thead className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest border-b border-slate-100 bg-slate-50">
-                            <tr>
-                              <th className="py-2 px-1.5 sm:px-3 rounded-tl-lg w-20 sm:w-32 whitespace-nowrap">날짜</th>
-                              <th className="py-2 px-1.5 sm:px-3">거래내용</th>
-                              <th className="py-2 px-1.5 sm:px-3 text-right rounded-tr-lg w-22 sm:w-28 whitespace-nowrap">금액</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-50">
-                            ${data.lines.map((line, idx) => html`
-                              <tr key=${idx} onClick=${() => line.txId && onEditTransaction && onEditTransaction(line.txId)} className=${`transition ${line.txId && onEditTransaction ? 'cursor-pointer hover:bg-indigo-50 active:bg-indigo-100' : 'hover:bg-slate-50'}`}>
-                                <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-slate-500 font-mono text-[10px] sm:text-xs whitespace-nowrap truncate">${line.date}</td>
-                                <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-slate-700 font-bold text-[10px] sm:text-sm leading-tight" style=${{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
-                                  ${line.memo || '내역 없음'}
-                                  ${line.tag && html`<br /><span className="text-[9px] sm:text-xs text-slate-400 font-normal">#${line.tag}</span>`}
-                                </td>
-                                <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-right font-mono font-bold text-slate-800 text-[11px] sm:text-sm whitespace-nowrap">${line.amount.toLocaleString()}원</td>
-                              </tr>
-                            `)}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  `;
-                })()}
+                <div className="space-y-3">
+                  ${reportData.fixedAccountIds.map(accountId => renderAccountCard(accountId))}
+                </div>
               </div>
-            `;
-          })}
-        </div>
+            `}
+
+            ${reportData.variableAccountIds.length > 0 && html`
+              <div className="space-y-3">
+                <div className="flex justify-between items-center px-1 border-b border-slate-100 pb-1.5">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-wider">
+                    ${reportType === 'revenue' ? '변동 수익' : '변동 비용'}
+                  </span>
+                  <span className="text-xs font-mono font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                    소계: ${reportData.variableTotal.toLocaleString()}원
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  ${reportData.variableAccountIds.map(accountId => renderAccountCard(accountId))}
+                </div>
+              </div>
+            `}
+          </div>
+        `}
       </div>
     </div>
   `;
