@@ -1184,7 +1184,7 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
                   onClick=${() => handleRemoveRow(idx)}
                   className="text-slate-400 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 p-2.5 transition-colors shrink-0"
                 >
-                  <${TrashIcon} />
+                  ${TrashIcon()}
                 </button>
               </div>
             `)}
@@ -2005,7 +2005,7 @@ const App = () => {
                         <div key=${i} className="flex gap-2 items-center">
                           <button onClick=${() => setActivePicker({ type: 'setupDebits', index: i })} className="flex-1 p-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] text-[11px] font-bold border border-slate-100 dark:border-slate-800 text-left truncate">${r.accountId ? getAccountById(r.accountId).name : '자산 선택'}</button>
                           <input type="number" className="w-20 sm:w-28 p-2 rounded-xl bg-white dark:bg-[#131b2e] text-right font-black border border-slate-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-400 text-xs sm:text-sm outline-none font-mono" value=${r.amount || ''} onChange=${(e) => { const val = Number(e.target.value); setData(prev => { const n = [...prev.initialSetup.debits]; n[i] = { ...n[i], amount: val }; return { ...prev, initialSetup: { ...prev.initialSetup, debits: n } }; }); setIsDirty(true); }} />
-                          <button onClick=${()=>{ setData(prev => { const n = [...prev.initialSetup.debits]; if (n.length > 1) n.splice(i, 1); return { ...prev, initialSetup: { ...prev.initialSetup, debits: n } }; }); setIsDirty(true); }} className="text-slate-400 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 p-1"><${TrashIcon} /></button>
+                          <button onClick=${()=>{ setData(prev => { const n = [...prev.initialSetup.debits]; if (n.length > 1) n.splice(i, 1); return { ...prev, initialSetup: { ...prev.initialSetup, debits: n } }; }); setIsDirty(true); }} className="text-slate-400 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 p-1">${TrashIcon()}</button>
                         </div>
                       `)}
                       <button onClick=${() => { setData(prev => ({ ...prev, initialSetup: { ...prev.initialSetup, debits: [...(prev.initialSetup.debits || []), { accountId: '', amount: 0 }] } })); setIsDirty(true); }} className="w-full p-2.5 mt-2.5 text-[10px] font-black text-indigo-500 dark:text-indigo-400 border border-dashed border-indigo-200 dark:border-indigo-800/80 rounded-xl hover:bg-indigo-50/50 dark:hover:bg-indigo-950/25">+ 자산 추가</button>
@@ -2046,7 +2046,7 @@ const App = () => {
                           <div key=${originalIndex} className="flex gap-2 items-center animate-in slide-in-from-right-2">
                             <button onClick=${() => setActivePicker({ type: 'setupCredits', index: originalIndex })} className="flex-1 p-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] text-[11px] font-bold border border-slate-100 dark:border-slate-800 text-left truncate">${r.accountId ? getAccountById(r.accountId).name : '부채 선택'}</button>
                             <input type="number" className="w-20 sm:w-28 p-2 rounded-xl bg-white dark:bg-[#131b2e] text-right font-black border border-slate-200 dark:border-slate-800 text-red-500 dark:text-rose-400 text-xs outline-none font-mono" value=${r.amount || ''} onChange=${(e) => { const val = Number(e.target.value); setData(prev => { const n = [...prev.initialSetup.credits]; n[originalIndex] = { ...n[originalIndex], amount: val }; return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} />
-                            <button onClick=${()=>{ setData(prev => { const n = [...prev.initialSetup.credits]; n.splice(originalIndex, 1); return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} className="text-slate-400 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 p-1"><${TrashIcon} /></button>
+                            <button onClick=${()=>{ setData(prev => { const n = [...prev.initialSetup.credits]; n.splice(originalIndex, 1); return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} className="text-slate-400 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 p-1">${TrashIcon()}</button>
                           </div>
                         `;
                       })}
@@ -2067,7 +2067,7 @@ const App = () => {
                         ${(accounts[cat] || []).filter(a => a.name !== '이익잉여금').map(a => html`
                           <div key=${a.id} className="flex items-center gap-2 p-2 bg-white dark:bg-[#131b2e] rounded-xl border border-slate-200 dark:border-slate-800 group shadow-sm transition-all hover:border-indigo-200 dark:hover:border-indigo-800 font-bold">
                             <input className="flex-1 bg-transparent border-none outline-none font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200" value=${a.name} onChange=${(e) => handleUpdateAccountName(cat, a.id, e.target.value)} />
-                            <button onClick=${() => handleDeleteAccount(cat, a.id)} className="sm:opacity-0 group-hover:opacity-100 text-red-400 p-1.5 transition-opacity"><${TrashIcon} /></button>
+                            <button onClick=${() => handleDeleteAccount(cat, a.id)} className="sm:opacity-0 group-hover:opacity-100 text-red-400 p-1.5 transition-opacity">${TrashIcon()}</button>
                           </div>
                         `)}
                         ${addingToCategory === cat && html`
@@ -2116,7 +2116,7 @@ const App = () => {
                       <span className="text-[10px] uppercase text-indigo-500 dark:text-indigo-400 font-black tracking-widest font-outfit">
                         ${selectedAccountForTag ? `계정: ${getAccountById(selectedAccountForTag.id)?.name}` : '계정과목 선택'}
                       </span>
-                      ${isAccountListOpen ? html`<${ChevronUpIcon} className="w-4 h-4 text-indigo-500" />` : html`<${ChevronDownIcon} className="w-4 h-4 text-indigo-500" />`}
+                      ${isAccountListOpen ? html`${ChevronUpIcon({ className: "w-4 h-4 text-indigo-500" })}` : html`${ChevronDownIcon({ className: "w-4 h-4 text-indigo-500" })}`}
                     </div>
                     <div className="hidden md:block text-[9px] uppercase text-indigo-500 dark:text-indigo-400 font-black mb-3.5 tracking-widest font-outfit">계정과목 선택</div>
                     
@@ -2156,14 +2156,14 @@ const App = () => {
                         <div className="flex flex-wrap gap-2 mb-6 flex-1 content-start">
                           ${(getAccountById(selectedAccountForTag.id)?.tags || []).length === 0 ? html`
                             <div className="flex flex-col items-center justify-center py-10 w-full text-slate-300 dark:text-slate-700 gap-1.5">
-                              <${TagIcon} className="w-6 h-6 text-slate-300 dark:text-slate-700" />
+                              ${TagIcon({ className: "w-6 h-6 text-slate-300 dark:text-slate-700" })}
                               <p className="text-[10px] font-bold text-slate-400 dark:text-slate-300">등록된 태그가 없습니다. 아래에서 새 태그를 추가하세요.</p>
                             </div>
                           ` : (getAccountById(selectedAccountForTag.id)?.tags || []).map(tag => html`
                             <span key=${tag} className="inline-flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100/50 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full text-xs font-black shadow-sm">
                               #${tag}
                               <button onClick=${() => handleRemoveTag(selectedAccountForTag.category, selectedAccountForTag.id, tag)} className="text-indigo-400 hover:text-red-500 transition-colors p-0.5">
-                                <${XIcon} className="w-3 h-3 text-indigo-400 hover:text-red-500" />
+                                ${XIcon({ className: "w-3 h-3 text-indigo-400 hover:text-red-500" })}
                               </button>
                             </span>
                           `)}
@@ -2200,7 +2200,7 @@ const App = () => {
                       </div>
                     ` : html`
                       <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-300 gap-2 py-20 flex-1">
-                        <${TagIcon} className="w-8 h-8 text-slate-300 dark:text-slate-700" />
+                        ${TagIcon({ className: "w-8 h-8 text-slate-300 dark:text-slate-700" })}
                         <p className="text-xs font-bold">왼쪽 목록에서 계정과목을 선택하여 태그를 관리하세요.</p>
                       </div>
                     `}
@@ -2307,7 +2307,7 @@ const App = () => {
                           ${availableTags.map(t => html`<option key=${t} value=${t}>${t}</option>`)}
                         </select>
                         <input type="number" className="w-20 sm:w-24 p-2 rounded-lg bg-white dark:bg-[#131b2e] text-right font-black border border-slate-200 dark:border-slate-800 text-xs outline-none font-mono text-slate-800 dark:text-slate-100" placeholder="0" value=${r.amount || ''} onChange=${(e) => handleUpdateEntryRow('debits', i, 'amount', Number(e.target.value))} />
-                        <button onClick=${()=>{const n=[...entryRows.debits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, debits:n}));}}} className="text-slate-400 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 p-1"><${TrashIcon} /></button>
+                        <button onClick=${()=>{const n=[...entryRows.debits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, debits:n}));}}} className="text-slate-400 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 p-1">${TrashIcon()}</button>
                       </div>
                     `;
                   })}
@@ -2345,7 +2345,7 @@ const App = () => {
                           ${availableTags.map(t => html`<option key=${t} value=${t}>${t}</option>`)}
                         </select>
                         <input type="number" className="w-20 sm:w-24 p-2 rounded-lg bg-white dark:bg-[#131b2e] text-right font-black border border-slate-200 dark:border-slate-800 text-xs outline-none font-mono text-slate-800 dark:text-slate-100" placeholder="0" value=${r.amount || ''} onChange=${(e) => handleUpdateEntryRow('credits', i, 'amount', Number(e.target.value))} />
-                        <button onClick=${()=>{const n=[...entryRows.credits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, credits:n}));}}} className="text-slate-400 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 p-1"><${TrashIcon} /></button>
+                        <button onClick=${()=>{const n=[...entryRows.credits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, credits:n}));}}} className="text-slate-400 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 p-1">${TrashIcon()}</button>
                       </div>
                     `;
                   })}
