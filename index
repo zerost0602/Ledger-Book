@@ -152,7 +152,7 @@ const ChevronUpIcon = ({ className = 'w-4 h-4' }) => html`
 `;
 
 // --- 공통 아토믹 컴포넌트 리스타일링 ---
-const Button = ({ children, variant = 'primary', className = '', ...props }) => {
+const Button = ({ children, variant = 'primary', className = '', onClick, disabled, title }) => {
   const base = "flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 shadow-sm text-sm theme-transition";
   const variants = {
     primary: "bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white shadow-[0_4px_12px_rgba(99,102,241,0.25)] hover:shadow-[0_6px_16px_rgba(99,102,241,0.4)] border border-indigo-400/20",
@@ -160,11 +160,11 @@ const Button = ({ children, variant = 'primary', className = '', ...props }) => 
     danger: "bg-red-50 hover:bg-red-500 text-red-500 hover:text-white border border-red-100 dark:bg-red-500/10 dark:hover:bg-red-500 dark:text-red-400 dark:hover:text-white dark:border-red-500/20",
     ghost: "bg-transparent hover:bg-slate-100 text-slate-600 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-slate-200 shadow-none"
   };
-  return html`<button className="${base} ${variants[variant]} ${className}" ...${props}>${children}</button>`;
+  return html`<button className="${base} ${variants[variant]} ${className}" onClick=${onClick} disabled=${disabled} title=${title}>${children}</button>`;
 };
 
-const Input = ({ className = '', ...props }) => html`
-  <input className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-950/50 transition-all text-sm font-bold text-slate-700 dark:text-slate-100 bg-white dark:bg-[#131b2e] placeholder:text-slate-400 dark:placeholder:text-slate-600 theme-transition ${className}" ...${props} />
+const Input = ({ className = '', type = 'text', value, onChange, placeholder, disabled }) => html`
+  <input type=${type} value=${value} onChange=${onChange} placeholder=${placeholder} disabled=${disabled} className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-950/50 transition-all text-sm font-bold text-slate-700 dark:text-slate-100 bg-white dark:bg-[#131b2e] placeholder:text-slate-400 dark:placeholder:text-slate-600 theme-transition ${className}" />
 `;
 
 const Card = ({ children, className = '' }) => html`
@@ -782,13 +782,13 @@ const MonthlyCalendar = ({ accounts, transactions, getAccountById, onEditTransac
   return html`
     <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 animate-in fade-in duration-300 pb-10">
       <${Card} className="p-3 sm:p-5 flex items-center justify-between overflow-hidden">
-        <h2 className="text-sm sm:text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-1 sm:gap-2 shrink-0">
-          <i data-lucide="calendar-days" className="text-indigo-500 w-4 h-4 sm:w-5 sm:h-5"></i> 월간 캘린더
+        <h2 className="text-xs sm:text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-0.5 sm:gap-2 shrink-0">
+          <i data-lucide="calendar-days" className="text-indigo-500 w-3.5 h-3.5 sm:w-5 sm:h-5"></i> <span className="whitespace-nowrap">월간 캘린더</span>
         </h2>
-        <div className="flex items-center gap-1 sm:gap-4 shrink-0">
-          <button onClick=${handlePrevMonth} className="p-1 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500"><i data-lucide="chevron-left" className="w-4 h-4 sm:w-5 sm:h-5"></i></button>
-          <span className="font-extrabold text-slate-700 dark:text-slate-200 w-20 sm:w-28 text-center text-xs sm:text-base font-outfit whitespace-nowrap">${year}년 ${month + 1}월</span>
-          <button onClick=${handleNextMonth} className="p-1 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500"><i data-lucide="chevron-right" className="w-4 h-4 sm:w-5 sm:h-5"></i></button>
+        <div className="flex items-center gap-0.5 sm:gap-4 shrink-0">
+          <button onClick=${handlePrevMonth} className="p-1 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500"><i data-lucide="chevron-left" className="w-3.5 h-3.5 sm:w-5 sm:h-5"></i></button>
+          <span className="font-extrabold text-slate-700 dark:text-slate-200 w-16 sm:w-28 text-center text-xs sm:text-base font-outfit whitespace-nowrap">${year}년 ${month + 1}월</span>
+          <button onClick=${handleNextMonth} className="p-1 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500"><i data-lucide="chevron-right" className="w-3.5 h-3.5 sm:w-5 sm:h-5"></i></button>
         </div>
       <//>
 
@@ -809,15 +809,15 @@ const MonthlyCalendar = ({ accounts, transactions, getAccountById, onEditTransac
                 <span className=${`font-black text-xs sm:text-sm mb-1 ml-0.5 font-outfit ${i % 7 === 0 ? 'text-red-500 dark:text-red-400' : i % 7 === 6 ? 'text-blue-500 dark:text-sky-400' : 'text-slate-600 dark:text-slate-400'}`}>${d}</span>
                 <div className="flex-1 space-y-1 mt-auto flex flex-col justify-end min-w-0 overflow-visible">
                   ${info.revenue !== 0 && html`
-                    <div className="w-full text-center sm:text-right text-[8px] sm:text-xs font-mono font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-0.5 sm:px-1.5 py-0.5 rounded-md sm:rounded-lg leading-normal overflow-hidden flex justify-center sm:justify-end">
+                    <div className="w-full text-center sm:text-right text-[8px] sm:text-xs font-mono font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-0 sm:px-1.5 py-0.5 rounded sm:rounded-lg leading-none flex justify-center sm:justify-end tracking-tighter sm:tracking-normal whitespace-nowrap">
                       <span className="hidden sm:inline">${info.revenue > 0 ? '+' : ''}${info.revenue.toLocaleString()}</span>
-                      <span className="inline sm:hidden">${info.revenue > 0 ? '+' : ''}${formatCompact(info.revenue)}</span>
+                      <span className="inline sm:hidden transform scale-90 sm:scale-100 origin-center">${info.revenue > 0 ? '+' : ''}${formatCompact(info.revenue)}</span>
                     </div>
                   `}
                   ${info.expense !== 0 && html`
-                    <div className="w-full text-center sm:text-right text-[8px] sm:text-xs font-mono font-black text-red-500 dark:text-rose-400 bg-red-50 dark:bg-rose-500/10 px-0.5 sm:px-1.5 py-0.5 rounded-md sm:rounded-lg leading-normal overflow-hidden flex justify-center sm:justify-end">
+                    <div className="w-full text-center sm:text-right text-[8px] sm:text-xs font-mono font-black text-red-500 dark:text-rose-400 bg-red-50 dark:bg-rose-500/10 px-0 sm:px-1.5 py-0.5 rounded sm:rounded-lg leading-none flex justify-center sm:justify-end tracking-tighter sm:tracking-normal whitespace-nowrap">
                       <span className="hidden sm:inline">${info.expense > 0 ? '-' : '+'}${Math.abs(info.expense).toLocaleString()}</span>
-                      <span className="inline sm:hidden">${info.expense > 0 ? '-' : '+'}${formatCompact(info.expense)}</span>
+                      <span className="inline sm:hidden transform scale-90 sm:scale-100 origin-center">${info.expense > 0 ? '-' : '+'}${formatCompact(info.expense)}</span>
                     </div>
                   `}
                 </div>
