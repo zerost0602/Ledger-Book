@@ -49,84 +49,144 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
+<!-- Google Fonts (Outfit, JetBrains Mono) 추가 -->
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;700;850&display=swap" rel="stylesheet">
+
+<script>
+  // Tailwind Config 설정: 다크 모드 활성화 및 글꼴 패밀리 추가
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Pretendard', 'Inter', 'sans-serif'],
+          outfit: ['Outfit', 'sans-serif'],
+          mono: ['JetBrains Mono', 'monospace'],
+        }
+      }
+    }
+  }
+</script>
+
 <style>
   body { font-family: 'Pretendard', sans-serif; }
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   input[type="number"] { -moz-appearance: textfield; }
-  .loading-overlay { background: rgba(255, 255, 255, 0.9); position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+  
+  /* 다크모드 및 블러 처리 강화된 로딩 오버레이 */
+  .loading-overlay { 
+    background: rgba(248, 250, 252, 0.85); 
+    position: fixed; 
+    inset: 0; 
+    z-index: 9999; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    flex-direction: column; 
+    backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+  }
+  .dark .loading-overlay {
+    background: rgba(8, 12, 22, 0.85);
+  }
+  
+  /* 커스텀 스크롤바 */
   .modal-scroll::-webkit-scrollbar { width: 4px; }
   .modal-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+  .dark .modal-scroll::-webkit-scrollbar-thumb { background-color: #334155; }
+  
   .sidebar-transition { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
   button, input, select { touch-action: manipulation; }
+  
+  /* 부드러운 테마 전환 효과 */
+  .theme-transition {
+    transition: background-color 0.3s ease, border-color 0.3s ease, text-color 0.3s ease, box-shadow 0.3s ease;
+  }
 </style>
 </head>
-<body class="bg-slate-50 text-slate-900 overflow-x-hidden font-sans">
+<body class="bg-[#f8fafc] dark:bg-[#080c16] text-[#1e293b] dark:text-slate-100 overflow-x-hidden font-sans theme-transition">
 <div id="root"></div>
 
-<script type="module">
-import React, { useState, useEffect, useMemo, useCallback } from 'https://esm.sh/react@18.2.0';
-import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
-import htm from 'https://esm.sh/htm@3.1.1';
+<!-- Load React, ReactDOM, and htm from CDN via standard script tags (enables local file execution without CORS blocking) -->
+<script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.min.js"></script>
+<script>
+  const { useState, useEffect, useMemo, useCallback } = React;
+  const html = htm.bind(React.createElement);
 
-const html = htm.bind(React.createElement);
+  // --- 한국어 컴팩트 숫자 포맷터 (모바일 화면 대응) ---
+  const formatCompact = (amount) => {
+    const absAmt = Math.abs(amount);
+    if (absAmt === 0) return '0';
+    if (absAmt >= 10000) {
+      const val = absAmt / 10000;
+      return `${val.toFixed(1).replace(/\.0$/, '')}만`;
+    } else if (absAmt >= 1000) {
+      const val = absAmt / 1000;
+      return `${val.toFixed(1).replace(/\.0$/, '')}천`;
+    }
+    return String(absAmt);
+  };
 
+// --- 커스텀 벡터 아이콘 정의 ---
 const TrashIcon = () => html`
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
 `;
 
 const TagIcon = ({ className = 'w-4 h-4' }) => html`
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className=${className}><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"></path><path d="M7 7h.01"></path></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className=${className}><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"></path><path d="M7 7h.01"></path></svg>
 `;
 
 const XIcon = ({ className = 'w-3 h-3' }) => html`
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className=${className}><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className=${className}><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
 `;
 
 const ChevronDownIcon = ({ className = 'w-4 h-4' }) => html`
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className=${className}><path d="m6 9 6 6 6-6"></path></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className=${className}><path d="m6 9 6 6 6-6"></path></svg>
 `;
 
 const ChevronUpIcon = ({ className = 'w-4 h-4' }) => html`
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className=${className}><path d="m18 15-6-6-6 6"></path></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className=${className}><path d="m18 15-6-6-6 6"></path></svg>
 `;
 
-// --- 공통 아토믹 컴포넌트 ---
+// --- 공통 아토믹 컴포넌트 리스타일링 ---
 const Button = ({ children, variant = 'primary', className = '', ...props }) => {
-  const base = "flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-bold transition-all active:scale-95 shadow-sm text-sm";
+  const base = "flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold transition-all active:scale-95 shadow-sm text-sm theme-transition";
   const variants = {
-    primary: "bg-indigo-600 hover:bg-indigo-700 text-white",
-    secondary: "bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200",
-    danger: "bg-red-50 hover:bg-red-500 text-red-500 hover:text-white border border-red-100",
-    ghost: "bg-transparent hover:bg-slate-100 text-slate-600 shadow-none"
+    primary: "bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white shadow-[0_4px_12px_rgba(99,102,241,0.25)] hover:shadow-[0_6px_16px_rgba(99,102,241,0.4)] border border-indigo-400/20",
+    secondary: "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700",
+    danger: "bg-red-50 hover:bg-red-500 text-red-500 hover:text-white border border-red-100 dark:bg-red-500/10 dark:hover:bg-red-500 dark:text-red-400 dark:hover:text-white dark:border-red-500/20",
+    ghost: "bg-transparent hover:bg-slate-100 text-slate-600 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-slate-200 shadow-none"
   };
   return html`<button className="${base} ${variants[variant]} ${className}" ...${props}>${children}</button>`;
 };
 
 const Input = ({ className = '', ...props }) => html`
-  <input className="w-full p-2.5 rounded-xl border border-slate-200 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-sm font-bold text-slate-700 bg-white placeholder:text-slate-300 ${className}" ...${props} />
+  <input className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-950/50 transition-all text-sm font-bold text-slate-700 dark:text-slate-100 bg-white dark:bg-[#131b2e] placeholder:text-slate-400 dark:placeholder:text-slate-600 theme-transition ${className}" ...${props} />
 `;
 
 const Card = ({ children, className = '' }) => html`
-  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden ${className}">${children}</div>
+  <div className="bg-white dark:bg-[#131b2e]/90 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm overflow-hidden backdrop-blur-md theme-transition ${className}">${children}</div>
 `;
 
-const MoneyText = ({ amount, className = '', colorClass = 'text-slate-800' }) => html`
-  <span className="font-mono font-black ${colorClass} ${className}">${Number(amount || 0).toLocaleString()}원</span>
+const MoneyText = ({ amount, className = '', colorClass = 'text-slate-800 dark:text-slate-200' }) => html`
+  <span className="font-mono font-extrabold tracking-tight ${colorClass} ${className}">${Number(amount || 0).toLocaleString()}원</span>
 `;
 
 const Modal = ({ isOpen, onClose, title, children, maxWidth = "max-w-md", zIndex = "z-50" }) => {
   if (!isOpen) return null;
   return html`
-    <div className="fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full ${maxWidth} overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[95vh]">
-        <div className="flex justify-between items-center p-4 sm:p-5 border-b bg-slate-50 shrink-0">
-          <h3 className="text-sm sm:text-lg font-bold text-slate-800">${title}</h3>
-          <button onClick=${onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    <div className="fixed inset-0 ${zIndex} flex items-end sm:items-center justify-center bg-slate-950/60 dark:bg-slate-950/75 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-[#0d1222] rounded-t-3xl sm:rounded-3xl w-full ${maxWidth} overflow-hidden shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[95vh] border border-transparent dark:border-slate-800/80 animate-in slide-in-from-bottom duration-300">
+        <div className="flex justify-between items-center p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-[#0f1524] shrink-0">
+          <h3 className="text-sm sm:text-lg font-black text-slate-800 dark:text-slate-100 font-outfit uppercase tracking-wider">${title}</h3>
+          <button onClick=${onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-400 dark:text-slate-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
-        <div className="p-4 sm:p-6 overflow-y-auto modal-scroll bg-white text-slate-800">${children}</div>
+        <div className="p-4 sm:p-6 overflow-y-auto modal-scroll bg-white dark:bg-[#0d1222] text-slate-800 dark:text-slate-200">${children}</div>
       </div>
     </div>
   `;
@@ -143,13 +203,13 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return html`
-        <div className="h-screen flex items-center justify-center bg-slate-50 p-6">
-          <${Card} className="max-w-md text-center p-6">
-            <div className="text-red-500 mb-4 flex justify-center">
+        <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-[#080c16] p-6 theme-transition">
+          <${Card} className="max-w-md text-center p-6 border-red-200 dark:border-red-900/30">
+            <div className="text-red-500 dark:text-red-400 mb-4 flex justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
             </div>
-            <h2 className="text-lg font-bold text-slate-800">오류가 발생했습니다</h2>
-            <p className="text-sm mt-2 text-slate-500 mb-6">${this.state.error?.toString()}</p>
+            <h2 className="text-lg font-black text-slate-800 dark:text-slate-100">오류가 발생했습니다</h2>
+            <p className="text-sm mt-2 text-slate-500 dark:text-slate-400 mb-6">${this.state.error?.toString()}</p>
             <${Button} onClick=${() => window.location.reload()} className="mx-auto">새로고침<//>
           <//>
         </div>
@@ -216,7 +276,7 @@ const useAccounting = () => {
         });
         setData(normalizeData(res));
       } else {
-        // Mock data for local interactive prototype
+        // 로컬 프로토타입 확인을 위한 가상 데이터
         const today = new Date();
         const currentMonth = today.toISOString().slice(0, 7);
         const lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -283,7 +343,6 @@ const useAccounting = () => {
               credits: [{ accountId: 'r1', amount: 2500000, tag: '기본급' }],
               memo: '월급 입금'
             },
-            // Last month transactions
             {
               id: 'tx-6',
               date: `${lastMonth}-01`,
@@ -371,16 +430,16 @@ const useAccounting = () => {
     catch (e) { alert('예산 저장 실패: ' + e); loadData(); }
   };
 
-  return { data, setData, loading, error, getAccountById, saveTransaction, deleteTransaction, saveSettingsData, saveBudget, flatAccounts, reload: loadData };
+  return { data, setData, loading, error, getAccountById, saveTransaction, deleteTransaction, saveSettingsData, saveBudget, flatAccounts, reload: loadData, runGasCommand };
 };
 
-// --- 컴포넌트 ---
+// --- 계정과목 격자형 피커 컴포넌트 ---
 const AccountGridPicker = ({ accounts, onPick, allowedCategories }) => {
   const allCategories = [
-    { key: 'assets', label: '자산', color: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100' },
-    { key: 'liabilities', label: '부채', color: 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' },
-    { key: 'revenue', label: '수익', color: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' },
-    { key: 'expenses', label: '비용', color: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' }
+    { key: 'assets', label: '자산', color: 'bg-blue-50/80 text-blue-700 border-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30 hover:bg-blue-100/50 dark:hover:bg-blue-950/40' },
+    { key: 'liabilities', label: '부채', color: 'bg-red-50/80 text-red-700 border-red-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30 hover:bg-red-100/50 dark:hover:bg-rose-950/40' },
+    { key: 'revenue', label: '수익', color: 'bg-emerald-50/80 text-emerald-700 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30 hover:bg-emerald-100/50 dark:hover:bg-emerald-950/40' },
+    { key: 'expenses', label: '비용', color: 'bg-orange-50/80 text-orange-700 border-orange-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30 hover:bg-orange-100/50 dark:hover:bg-amber-950/40' }
   ];
   const categories = allowedCategories
     ? allCategories.filter(c => allowedCategories.includes(c.key))
@@ -389,13 +448,13 @@ const AccountGridPicker = ({ accounts, onPick, allowedCategories }) => {
     <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 pb-10">
       ${categories.map(cat => html`
         <div key=${cat.key}>
-          <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 ml-1">${cat.label}</h4>
+          <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 ml-1 font-outfit">${cat.label}</h4>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             ${(accounts[cat.key] || []).filter(a => a.name !== '이익잉여금').map(a => html`
-              <button key=${a.id} onClick=${() => onPick(a.id)} className="p-3 rounded-xl border text-xs font-bold transition-all active:scale-95 hover:shadow-md ${cat.color}">${a.name}</button>
+              <button key=${a.id} onClick=${() => onPick(a.id)} className="p-3.5 rounded-xl border text-xs font-bold transition-all active:scale-95 hover:shadow-md ${cat.color}">${a.name}</button>
             `)}
             ${cat.key === 'liabilities' && html`
-              <button onClick=${() => onPick('closing_temp')} className="p-3 rounded-xl border text-xs font-bold bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100 transition-colors">결산(임시)</button>
+              <button onClick=${() => onPick('closing_temp')} className="p-3.5 rounded-xl border text-xs font-bold bg-slate-50 dark:bg-[#151c2f] text-slate-400 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-[#1e293b] transition-colors">결산(임시)</button>
             `}
           </div>
         </div>
@@ -404,6 +463,7 @@ const AccountGridPicker = ({ accounts, onPick, allowedCategories }) => {
   `;
 };
 
+// --- 월간 손익 명세 컴포넌트 ---
 const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, onEditTransaction }) => {
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
   const [reportType, setReportType] = useState('expenses'); // 'expenses' | 'revenue'
@@ -466,7 +526,6 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
       map[accId].lines.sort((a, b) => a.date.localeCompare(b.date));
     });
 
-    // 고정과 변동 그룹 분리 및 소계 산출
     let fixedTotal = 0;
     let variableTotal = 0;
     const fixedAccountIds = [];
@@ -503,19 +562,19 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
     const subtype = account.subtype || 'variable';
 
     return html`
-      <div key=${accountId} className="border border-slate-200 rounded-xl overflow-hidden transition-all shadow-sm">
-        <div onClick=${() => toggleAccordion(accountId)} className="flex justify-between items-center p-3 sm:p-4 bg-slate-50 hover:bg-slate-100 cursor-pointer transition select-none">
-          <div className="font-extrabold text-slate-800 text-sm sm:text-base flex items-center gap-2">
-            <span className=${`px-2 py-0.5 rounded-md text-[10px] font-black ${reportType === 'revenue' ? 'bg-emerald-100 text-emerald-600' : 'bg-orange-100 text-orange-600'}`}>
+      <div key=${accountId} className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden transition-all shadow-sm">
+        <div onClick=${() => toggleAccordion(accountId)} className="flex justify-between items-center p-3.5 sm:p-4 bg-slate-50/50 hover:bg-slate-100/50 dark:bg-[#131b2e]/60 dark:hover:bg-[#17223b]/60 cursor-pointer transition select-none">
+          <div className="font-extrabold text-slate-800 dark:text-slate-100 text-sm sm:text-base flex items-center gap-2">
+            <span className=${`px-2 py-0.5 rounded-md text-[9px] font-black ${reportType === 'revenue' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-orange-100 text-orange-600 dark:bg-amber-500/10 dark:text-amber-400'}`}>
               ${reportType === 'revenue' ? '수익' : '비용'}
             </span>
-            <span className=${`px-2 py-0.5 rounded-md text-[10px] font-black ${subtype === 'fixed' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+            <span className=${`px-2 py-0.5 rounded-md text-[9px] font-black ${subtype === 'fixed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400' : 'bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400'}`}>
               ${subtype === 'fixed' ? '고정' : '변동'}
             </span>
             ${accountName}
           </div>
           <div className="flex items-center gap-4 text-sm">
-            <span className="font-mono font-black text-slate-800">${data.total.toLocaleString()}원</span>
+            <span className="font-mono font-black text-slate-800 dark:text-slate-100">${data.total.toLocaleString()}원</span>
             <div className="w-6 flex justify-end text-slate-400">
               ${isExpanded ? html`<i data-lucide="chevron-up" className="w-4 h-4"></i>` : html`<i data-lucide="chevron-down" className="w-4 h-4"></i>`}
             </div>
@@ -536,46 +595,46 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
             .map(tag => ({ tag, amount: tagMap[tag] }))
             .sort((a, b) => b.amount - a.amount);
           return html`
-            <div className="border-t border-slate-200 bg-white animate-in slide-in-from-top-2 duration-200">
-              <div className="p-3 bg-slate-50/50 border-b flex flex-wrap gap-2 items-center justify-between text-xs font-bold text-slate-600">
+            <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f1524]/20 animate-in slide-in-from-top-2 duration-200">
+              <div className="p-3 bg-slate-50/30 dark:bg-[#0f1524]/60 border-b border-slate-200/50 dark:border-slate-800 flex flex-wrap gap-2 items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400">
                 <div className="flex flex-wrap gap-1.5 items-center">
-                  <span className="text-[10px] text-slate-400 mr-1 uppercase tracking-wider">소분류 집계:</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-500 mr-1 uppercase tracking-wider font-outfit">소분류 집계:</span>
                   ${sortedTags.map(item => html`
-                    <span key=${item.tag} className="bg-indigo-50 border border-indigo-100 text-indigo-600 px-2.5 py-1 rounded-md text-[10px]">
-                      #${item.tag} <span className="font-mono text-[10px] text-indigo-500 font-extrabold">${item.amount.toLocaleString()}원</span>
+                    <span key=${item.tag} className="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100/50 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-lg text-[9px] font-extrabold shadow-sm">
+                      #${item.tag} <span className="font-mono text-[9px] text-indigo-500 dark:text-indigo-300 font-extrabold">${item.amount.toLocaleString()}원</span>
                     </span>
                   `)}
                   ${noTagTotal !== 0 && html`
-                    <span className="bg-slate-100 border border-slate-200 text-slate-500 px-2.5 py-1 rounded-md text-[10px]">
-                      태그 미지정 <span className="font-mono text-[10px] text-slate-400 font-extrabold">${noTagTotal.toLocaleString()}원</span>
+                    <span className="bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 text-slate-500 dark:text-slate-400 px-2.5 py-1 rounded-lg text-[9px] font-extrabold shadow-sm">
+                      태그 미지정 <span className="font-mono text-[9px] text-slate-400 dark:text-slate-300 font-extrabold">${noTagTotal.toLocaleString()}원</span>
                     </span>
                   `}
                   ${sortedTags.length === 0 && noTagTotal === 0 && html`
-                    <span className="text-slate-300 text-[10px] font-bold">집계할 데이터가 없습니다.</span>
+                    <span className="text-slate-400 dark:text-slate-500 text-[10px] font-bold">집계할 데이터가 없습니다.</span>
                   `}
                 </div>
-                <div className="text-[10px] sm:text-xs font-black text-slate-700 bg-white border px-3 py-1 rounded-lg shadow-sm">
-                  총액: <span className="font-mono text-indigo-600">${data.total.toLocaleString()}원</span>
+                <div className="text-[10px] sm:text-xs font-black text-slate-700 dark:text-slate-200 bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 px-3 py-1 rounded-lg shadow-sm">
+                  총액: <span className="font-mono text-indigo-600 dark:text-indigo-400">${data.total.toLocaleString()}원</span>
                 </div>
               </div>
               <div className="p-3">
                 <table className="w-full text-left table-fixed">
-                  <thead className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest border-b border-slate-100 bg-slate-50">
+                  <thead className="text-slate-400 dark:text-slate-500 text-[9px] sm:text-[10px] font-black uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#0f1524]/30 font-outfit">
                     <tr>
-                      <th className="py-2 px-1.5 sm:px-3 rounded-tl-lg w-20 sm:w-32 whitespace-nowrap">날짜</th>
+                      <th className="py-2 px-1.5 sm:px-3 rounded-tl-lg w-24 sm:w-32 whitespace-nowrap">날짜</th>
                       <th className="py-2 px-1.5 sm:px-3">거래내용</th>
-                      <th className="py-2 px-1.5 sm:px-3 text-right rounded-tr-lg w-22 sm:w-28 whitespace-nowrap">금액</th>
+                      <th className="py-2 px-1.5 sm:px-3 text-right rounded-tr-lg w-24 sm:w-32 whitespace-nowrap">금액</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
+                  <tbody className="divide-y divide-slate-50 dark:divide-slate-850">
                     ${data.lines.map((line, idx) => html`
-                      <tr key=${idx} onClick=${() => line.txId && onEditTransaction && onEditTransaction(line.txId)} className=${`transition ${line.txId && onEditTransaction ? 'cursor-pointer hover:bg-indigo-50 active:bg-indigo-100' : 'hover:bg-slate-50'}`}>
-                        <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-slate-500 font-mono text-[10px] sm:text-xs whitespace-nowrap truncate">${line.date}</td>
-                        <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-slate-700 font-bold text-[10px] sm:text-sm leading-tight" style=${{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
+                      <tr key=${idx} onClick=${() => line.txId && onEditTransaction && onEditTransaction(line.txId)} className=${`transition-colors ${line.txId && onEditTransaction ? 'cursor-pointer hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 active:bg-indigo-100/50' : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/10'}`}>
+                        <td className="py-2.5 px-1.5 sm:px-3 text-slate-500 dark:text-slate-400 font-mono text-[10px] sm:text-xs whitespace-nowrap truncate">${line.date}</td>
+                        <td className="py-2.5 px-1.5 sm:px-3 text-slate-700 dark:text-slate-200 font-bold text-[10px] sm:text-sm leading-tight" style=${{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
                           ${line.memo || '내역 없음'}
-                          ${line.tag && html`<br /><span className="text-[9px] sm:text-xs text-slate-400 font-normal">#${line.tag}</span>`}
+                          ${line.tag && html`<br /><span className="text-[9px] sm:text-xs text-slate-500 dark:text-slate-500 font-normal">#${line.tag}</span>`}
                         </td>
-                        <td className="py-2 px-1.5 sm:py-2.5 sm:px-3 text-right font-mono font-bold text-slate-800 text-[11px] sm:text-sm whitespace-nowrap">${line.amount.toLocaleString()}원</td>
+                        <td className="py-2.5 px-1.5 sm:px-3 text-right font-mono font-black text-slate-800 dark:text-slate-100 text-[11px] sm:text-sm whitespace-nowrap">${line.amount.toLocaleString()}원</td>
                       </tr>
                     `)}
                   </tbody>
@@ -590,60 +649,60 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
 
   return html`
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300 pb-10">
-      <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
+      <${Card} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h2 className="text-lg sm:text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
           <i data-lucide=${reportType === 'revenue' ? 'trending-up' : 'receipt'} className=${reportType === 'revenue' ? 'text-emerald-500' : 'text-orange-500'}></i> 월간손익명세
         </h2>
         <div className="flex items-center gap-3 self-end sm:self-auto">
-          <div className="bg-slate-100 p-1 rounded-xl flex gap-1 border border-slate-200">
+          <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-xl flex gap-1 border border-slate-200/80 dark:border-slate-800/85">
             <button 
               onClick=${() => { setReportType('revenue'); setExpandedAccounts({}); }} 
-              className=${`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${reportType === 'revenue' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              className=${`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${reportType === 'revenue' ? 'bg-white dark:bg-[#1d263b] text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}
             >
               수익
             </button>
             <button 
               onClick=${() => { setReportType('expenses'); setExpandedAccounts({}); }} 
-              className=${`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${reportType === 'expenses' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              className=${`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${reportType === 'expenses' ? 'bg-white dark:bg-[#1d263b] text-orange-600 dark:text-amber-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}
             >
               비용
             </button>
           </div>
-          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-[#1e293b] px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 font-bold">
             <i data-lucide="calendar" className="w-4 h-4 text-slate-400"></i>
-            <input type="month" value=${targetMonth} onChange=${(e) => setTargetMonth(e.target.value)} className="bg-transparent font-bold text-slate-700 border-none outline-none text-sm cursor-pointer" />
+            <input type="month" value=${targetMonth} onChange=${(e) => setTargetMonth(e.target.value)} className="bg-transparent font-bold text-slate-700 dark:text-slate-200 border-none outline-none text-sm cursor-pointer" />
           </div>
         </div>
-      </div>
+      <//>
 
-      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-6">
-        <div className="flex justify-between items-center mb-2 border-b-2 pb-2 transition-all duration-300" style=${{ borderColor: reportType === 'revenue' ? '#10b981' : '#f97316' }}>
-          <h3 className="text-sm sm:text-base font-bold text-slate-700 uppercase tracking-widest">
+      <${Card} className="p-5 sm:p-6 space-y-6">
+        <div className="flex justify-between items-center mb-2 border-b pb-3 transition-all duration-300" style=${{ borderColor: reportType === 'revenue' ? '#10b981' : '#f97316' }}>
+          <h3 className="text-xs sm:text-sm font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest font-outfit">
             ${reportType === 'revenue' ? '수익 계정과목별 상세내역' : '비용 계정과목별 상세내역'}
           </h3>
           <div className="text-right">
-            <span className="text-[10px] font-black text-slate-400 uppercase mr-2">
+            <span className="text-[10px] font-black text-slate-400 dark:text-slate-300 mr-2 font-outfit uppercase">
               ${reportType === 'revenue' ? '총 수익액' : '총 지출액'}
             </span>
-            <span className=${`font-mono font-black text-lg sm:text-xl transition-all duration-300 ${reportType === 'revenue' ? 'text-emerald-600' : 'text-orange-600'}`}>
+            <span className=${`font-mono font-black text-lg sm:text-xl transition-all duration-300 ${reportType === 'revenue' ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-amber-400'}`}>
               ${reportData.totalVal.toLocaleString()}원
             </span>
           </div>
         </div>
 
         ${reportData.activeAccountIds.length === 0 ? html`
-          <p className="text-slate-400 text-sm text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+          <p className="text-slate-400 dark:text-slate-500 text-sm text-center py-10 bg-slate-50/50 dark:bg-[#0f1524]/20 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
             해당 월에 발생한 ${reportType === 'revenue' ? '수익' : '지출'} 내역이 없습니다.
           </p>
         ` : html`
           <div className="space-y-6">
             ${reportData.fixedAccountIds.length > 0 && html`
-              <div className="space-y-3">
-                <div className="flex justify-between items-center px-1 border-b border-slate-100 pb-1.5">
-                  <span className="text-xs font-black text-slate-500 uppercase tracking-wider">
-                    ${reportType === 'revenue' ? '고정 수익' : '고정 비용'}
+              <div className="space-y-3.5">
+                <div className="flex justify-between items-center px-1 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <span className="text-xs font-black text-slate-500 dark:text-slate-300 uppercase tracking-wider font-outfit">
+                    ${reportType === 'revenue' ? '고정 수익 (Fixed)' : '고정 비용 (Fixed)'}
                   </span>
-                  <span className="text-xs font-mono font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                  <span className="text-[11px] font-mono font-black text-slate-700 dark:text-slate-300 bg-slate-100/60 dark:bg-slate-800 px-2 py-0.5 rounded-lg shadow-sm">
                     소계: ${reportData.fixedTotal.toLocaleString()}원
                   </span>
                 </div>
@@ -654,12 +713,12 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
             `}
 
             ${reportData.variableAccountIds.length > 0 && html`
-              <div className="space-y-3">
-                <div className="flex justify-between items-center px-1 border-b border-slate-100 pb-1.5">
-                  <span className="text-xs font-black text-slate-500 uppercase tracking-wider">
-                    ${reportType === 'revenue' ? '변동 수익' : '변동 비용'}
+              <div className="space-y-3.5">
+                <div className="flex justify-between items-center px-1 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <span className="text-xs font-black text-slate-500 dark:text-slate-300 uppercase tracking-wider font-outfit">
+                    ${reportType === 'revenue' ? '변동 수익 (Variable)' : '변동 비용 (Variable)'}
                   </span>
-                  <span className="text-xs font-mono font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                  <span className="text-[11px] font-mono font-black text-slate-700 dark:text-slate-300 bg-slate-100/60 dark:bg-slate-800 px-2 py-0.5 rounded-lg shadow-sm">
                     소계: ${reportData.variableTotal.toLocaleString()}원
                   </span>
                 </div>
@@ -670,11 +729,12 @@ const MonthlyIncomeExpenseReport = ({ accounts, transactions, getAccountById, on
             `}
           </div>
         `}
-      </div>
+      <//>
     </div>
   `;
 };
 
+// --- 월간 캘린더 컴포넌트 ---
 const MonthlyCalendar = ({ accounts, transactions, getAccountById, onEditTransaction }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -721,45 +781,43 @@ const MonthlyCalendar = ({ accounts, transactions, getAccountById, onEditTransac
 
   return html`
     <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 animate-in fade-in duration-300 pb-10">
-      <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
-        <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
-          <i data-lucide="calendar-days" className="text-indigo-500"></i> 월간 캘린더
+      <${Card} className="p-3 sm:p-5 flex items-center justify-between overflow-hidden">
+        <h2 className="text-sm sm:text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-1 sm:gap-2 shrink-0">
+          <i data-lucide="calendar-days" className="text-indigo-500 w-4 h-4 sm:w-5 sm:h-5"></i> 월간 캘린더
         </h2>
-        <div className="flex items-center gap-4">
-          <button onClick=${handlePrevMonth} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"><i data-lucide="chevron-left" className="w-5 h-5"></i></button>
-          <span className="font-black text-slate-700 w-24 text-center">${year}년 ${month + 1}월</span>
-          <button onClick=${handleNextMonth} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"><i data-lucide="chevron-right" className="w-5 h-5"></i></button>
+        <div className="flex items-center gap-1 sm:gap-4 shrink-0">
+          <button onClick=${handlePrevMonth} className="p-1 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500"><i data-lucide="chevron-left" className="w-4 h-4 sm:w-5 sm:h-5"></i></button>
+          <span className="font-extrabold text-slate-700 dark:text-slate-200 w-20 sm:w-28 text-center text-xs sm:text-base font-outfit whitespace-nowrap">${year}년 ${month + 1}월</span>
+          <button onClick=${handleNextMonth} className="p-1 sm:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500"><i data-lucide="chevron-right" className="w-4 h-4 sm:w-5 sm:h-5"></i></button>
         </div>
-      </div>
+      <//>
 
-      <div className="bg-white p-3 sm:p-5 rounded-2xl shadow-sm border border-slate-200">
-        <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
+      <${Card} className="p-3 sm:p-5">
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5 mb-3">
           ${['일', '월', '화', '수', '목', '금', '토'].map((d, i) => html`
-            <div key=${d} className=${`text-center font-bold text-xs sm:text-sm py-2 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-slate-400'}`}>${d}</div>
+            <div key=${d} className=${`text-center font-black text-xs sm:text-sm py-2 ${i === 0 ? 'text-red-400 dark:text-red-400' : i === 6 ? 'text-blue-400 dark:text-sky-400' : 'text-slate-400 dark:text-slate-300'}`}>${d}</div>
           `)}
         </div>
-        <div className="grid grid-cols-7 gap-1 sm:gap-2">
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5">
           ${days.map((d, i) => {
-            if (!d) return html`<div key=${i} className="bg-slate-50/50 rounded-xl min-h-[80px] sm:min-h-[120px]"></div>`;
+            if (!d) return html`<div key=${i} className="bg-slate-50/20 dark:bg-[#0b0f19]/10 rounded-2xl min-h-[85px] sm:min-h-[120px] border border-transparent"></div>`;
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const info = dailyData[dateStr] || { revenue: 0, expense: 0, txs: [] };
             
             return html`
-              <div key=${i} onClick=${() => info.txs.length > 0 && setSelectedDate(dateStr)} className=${`min-h-[75px] sm:min-h-[120px] p-0.5 sm:p-2 rounded-xl border transition-all flex flex-col min-w-0 ${info.txs.length > 0 ? 'cursor-pointer hover:border-indigo-400 hover:shadow-md bg-white border-slate-200' : 'bg-white border-slate-100'}`}>
-                <span className=${`font-bold text-[10px] sm:text-sm mb-1 ml-1 ${i % 7 === 0 ? 'text-red-400' : i % 7 === 6 ? 'text-blue-400' : 'text-slate-600'}`}>${d}</span>
-                <div className="flex-1 space-y-0.5 sm:space-y-1 mt-auto flex flex-col justify-end min-w-0 overflow-visible">
+              <div key=${i} onClick=${() => info.txs.length > 0 && setSelectedDate(dateStr)} className=${`min-h-[85px] sm:min-h-[120px] p-1 sm:p-2.5 rounded-xl sm:rounded-2xl border transition-all flex flex-col min-w-0 shadow-sm relative group ${info.txs.length > 0 ? 'cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:shadow-indigo-500/5 bg-white dark:bg-[#131b2e]/80 border-slate-200 dark:border-slate-800/80 hover:border-indigo-400 dark:hover:border-indigo-500' : 'bg-slate-50/30 dark:bg-[#0b0f19]/10 border-slate-100 dark:border-slate-900/30'}`}>
+                <span className=${`font-black text-xs sm:text-sm mb-1 ml-0.5 font-outfit ${i % 7 === 0 ? 'text-red-500 dark:text-red-400' : i % 7 === 6 ? 'text-blue-500 dark:text-sky-400' : 'text-slate-600 dark:text-slate-400'}`}>${d}</span>
+                <div className="flex-1 space-y-1 mt-auto flex flex-col justify-end min-w-0 overflow-visible">
                   ${info.revenue !== 0 && html`
-                    <div className="w-full text-right text-[10px] sm:text-xs font-mono font-black text-emerald-600 bg-emerald-50/60 sm:bg-emerald-50 px-0.5 rounded leading-[1.1] sm:leading-normal overflow-visible flex justify-end">
-                      <div className="origin-right scale-[0.7] sm:scale-100 whitespace-nowrap">
-                        ${info.revenue > 0 ? '+' : ''}${info.revenue.toLocaleString()}
-                      </div>
+                    <div className="w-full text-center sm:text-right text-[8px] sm:text-xs font-mono font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-0.5 sm:px-1.5 py-0.5 rounded-md sm:rounded-lg leading-normal overflow-hidden flex justify-center sm:justify-end">
+                      <span className="hidden sm:inline">${info.revenue > 0 ? '+' : ''}${info.revenue.toLocaleString()}</span>
+                      <span className="inline sm:hidden">${info.revenue > 0 ? '+' : ''}${formatCompact(info.revenue)}</span>
                     </div>
                   `}
                   ${info.expense !== 0 && html`
-                    <div className="w-full text-right text-[10px] sm:text-xs font-mono font-black text-red-500 bg-red-50/60 sm:bg-red-50 px-0.5 rounded leading-[1.1] sm:leading-normal overflow-visible flex justify-end">
-                      <div className="origin-right scale-[0.7] sm:scale-100 whitespace-nowrap">
-                        ${info.expense > 0 ? '-' : '+'}${Math.abs(info.expense).toLocaleString()}
-                      </div>
+                    <div className="w-full text-center sm:text-right text-[8px] sm:text-xs font-mono font-black text-red-500 dark:text-rose-400 bg-red-50 dark:bg-rose-500/10 px-0.5 sm:px-1.5 py-0.5 rounded-md sm:rounded-lg leading-normal overflow-hidden flex justify-center sm:justify-end">
+                      <span className="hidden sm:inline">${info.expense > 0 ? '-' : '+'}${Math.abs(info.expense).toLocaleString()}</span>
+                      <span className="inline sm:hidden">${info.expense > 0 ? '-' : '+'}${formatCompact(info.expense)}</span>
                     </div>
                   `}
                 </div>
@@ -767,28 +825,28 @@ const MonthlyCalendar = ({ accounts, transactions, getAccountById, onEditTransac
             `;
           })}
         </div>
-      </div>
+      <//>
 
       <${Modal} isOpen=${!!selectedDate} onClose=${() => setSelectedDate(null)} title="${selectedDate} 상세 내역">
         <div className="space-y-3 modal-scroll max-h-[60vh] overflow-y-auto pr-2">
           ${selectedDate && dailyData[selectedDate] && dailyData[selectedDate].txs.map(tx => html`
-            <div key=${tx.id} onClick=${() => { onEditTransaction(tx.id); setSelectedDate(null); }} className="p-3 border border-slate-100 bg-slate-50 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 transition-all cursor-pointer shadow-sm">
-              <div className="font-bold text-slate-700 mb-2">${tx.memo || '내역 없음'}</div>
-              <div className="grid grid-cols-2 gap-3 text-[11px] sm:text-xs bg-white p-2 rounded-lg border border-slate-100">
+            <div key=${tx.id} onClick=${() => { onEditTransaction(tx.id); setSelectedDate(null); }} className="p-3.5 border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#131b2e]/50 rounded-2xl hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 hover:border-indigo-200 dark:hover:border-indigo-800/80 transition-all cursor-pointer shadow-sm">
+              <div className="font-extrabold text-slate-700 dark:text-slate-200 mb-2.5 text-sm">${tx.memo || '내역 없음'}</div>
+              <div className="grid grid-cols-2 gap-3 text-[11px] sm:text-xs bg-white dark:bg-[#0d1222]/80 p-2.5 rounded-xl border border-slate-100/80 dark:border-slate-800/80">
                 <div>
-                  <div className="text-[9px] text-slate-400 uppercase font-black mb-1">차변 (Debit)</div>
+                  <div className="text-[9px] text-slate-400 dark:text-slate-300 uppercase font-black mb-1.5 font-outfit border-b border-slate-100 dark:border-slate-800 pb-0.5">차변 (Debit)</div>
                   ${tx.debits.map((d, idx) => html`
                     <div key=${idx} className="flex justify-between items-center py-0.5">
-                      <span className="text-indigo-600 font-medium truncate pr-1">${getAccountById(d.accountId)?.name}</span>
+                      <span className="text-indigo-600 dark:text-indigo-400 font-bold truncate pr-1">${getAccountById(d.accountId)?.name}</span>
                       <${MoneyText} amount=${d.amount} className="text-[10px] sm:text-xs" />
                     </div>
                   `)}
                 </div>
                 <div>
-                  <div className="text-[9px] text-slate-400 uppercase font-black mb-1">대변 (Credit)</div>
+                  <div className="text-[9px] text-slate-400 dark:text-slate-300 uppercase font-black mb-1.5 font-outfit border-b border-slate-100 dark:border-slate-800 pb-0.5">대변 (Credit)</div>
                   ${tx.credits.map((c, idx) => html`
                     <div key=${idx} className="flex justify-between items-center py-0.5">
-                      <span className="text-red-500 font-medium truncate pr-1">${getAccountById(c.accountId)?.name}</span>
+                      <span className="text-red-500 dark:text-rose-400 font-bold truncate pr-1">${getAccountById(c.accountId)?.name}</span>
                       <${MoneyText} amount=${c.amount} className="text-[10px] sm:text-xs" />
                     </div>
                   `)}
@@ -802,30 +860,23 @@ const MonthlyCalendar = ({ accounts, transactions, getAccountById, onEditTransac
   `;
 };
 
-// --- Monthly Budget Component ---
+// --- 월별 예산 컴포넌트 ---
 const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget }) => {
   const [targetMonth, setTargetMonth] = useState(new Date().toISOString().slice(0, 7));
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editRows, setEditRows] = useState([]);
   const [editOtherAmount, setEditOtherAmount] = useState(0);
-  const [activeBudgetPicker, setActiveBudgetPicker] = useState(null); // null or { index }
+  const [activeBudgetPicker, setActiveBudgetPicker] = useState(null);
   const [isOtherExpanded, setIsOtherExpanded] = useState(false);
 
-  // Get active budget for the target month
   const activeBudget = useMemo(() => {
-    if (budgets[targetMonth]) {
-      return budgets[targetMonth];
-    }
-    // Carry over from the latest month available
+    if (budgets[targetMonth]) return budgets[targetMonth];
     const keys = Object.keys(budgets).sort();
     const prevKeys = keys.filter(k => k < targetMonth);
-    if (prevKeys.length > 0) {
-      return budgets[prevKeys[prevKeys.length - 1]];
-    }
+    if (prevKeys.length > 0) return budgets[prevKeys[prevKeys.length - 1]];
     return {};
   }, [budgets, targetMonth]);
 
-  // Calculate spent for each expense account in targetMonth
   const spentMap = useMemo(() => {
     const monthlyTx = transactions.filter(t => {
       const isClosingTx = (t.id && String(t.id).startsWith('CLOSE-')) || (t.memo && t.memo.includes('[결산'));
@@ -833,27 +884,15 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
     });
 
     const map = {};
-    accounts.expenses.forEach(acc => {
-      map[acc.id] = 0;
-    });
+    accounts.expenses.forEach(acc => { map[acc.id] = 0; });
 
     monthlyTx.forEach(tx => {
-      (tx.debits || []).forEach(d => {
-        if (map[d.accountId] !== undefined) {
-          map[d.accountId] += d.amount;
-        }
-      });
-      (tx.credits || []).forEach(c => {
-        if (map[c.accountId] !== undefined) {
-          map[c.accountId] -= c.amount;
-        }
-      });
+      (tx.debits || []).forEach(d => { if (map[d.accountId] !== undefined) map[d.accountId] += d.amount; });
+      (tx.credits || []).forEach(c => { if (map[c.accountId] !== undefined) map[c.accountId] -= c.amount; });
     });
-
     return map;
   }, [transactions, targetMonth, accounts.expenses]);
 
-  // Separate budgeted and unbudgeted expense accounts
   const budgetDataList = useMemo(() => {
     const budgeted = [];
     const unbudgeted = [];
@@ -884,18 +923,13 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
       }
     });
 
-    // Other Expenses
     const otherBudget = activeBudget['other'] || 0;
     const otherRemaining = otherBudget - otherSpent;
 
     return {
       budgeted: budgeted.sort((a, b) => b.budget - a.budget),
       unbudgeted: unbudgeted.filter(a => a.spent !== 0).sort((a, b) => b.spent - a.spent),
-      other: {
-        budget: otherBudget,
-        spent: otherSpent,
-        remaining: otherRemaining
-      }
+      other: { budget: otherBudget, spent: otherSpent, remaining: otherRemaining }
     };
   }, [accounts.expenses, activeBudget, spentMap]);
 
@@ -910,15 +944,11 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
 
   const totalRemaining = totalBudget - totalSpent;
 
-  // Edit Modal handlers
   const openEditModal = () => {
     const initialRows = [];
     Object.keys(activeBudget).forEach(key => {
       if (key !== 'other' && activeBudget[key] > 0) {
-        initialRows.push({
-          accountId: key,
-          amount: activeBudget[key]
-        });
+        initialRows.push({ accountId: key, amount: activeBudget[key] });
       }
     });
     setEditRows(initialRows);
@@ -928,9 +958,7 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
 
   const handleSave = async () => {
     const cleanedBudget = {};
-    if (editOtherAmount > 0) {
-      cleanedBudget['other'] = Number(editOtherAmount) || 0;
-    }
+    if (editOtherAmount > 0) cleanedBudget['other'] = Number(editOtherAmount) || 0;
     editRows.forEach(row => {
       if (row.accountId && Number(row.amount) > 0) {
         cleanedBudget[row.accountId] = Number(row.amount) || 0;
@@ -982,32 +1010,32 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
   }, [targetMonth, isEditModalOpen, editRows, activeBudgetPicker]);
 
   return html`
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300 pb-10 text-slate-800">
-      <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
-          <i data-lucide="piggy-bank" className="text-indigo-600"></i> 월별 예산 관리
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300 pb-10 text-slate-800 dark:text-slate-200">
+      <${Card} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h2 className="text-lg sm:text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+          <i data-lucide="piggy-bank" className="text-indigo-500"></i> 월별 예산 관리
         </h2>
         <div className="flex items-center gap-3 self-end sm:self-auto">
           <${Button} variant="primary" onClick=${openEditModal} className="text-xs font-bold py-1.5 px-3">
             <i data-lucide="edit" className="w-4 h-4"></i> 예산 수정
           <//>
-          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 font-bold">
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-[#1e293b] px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 font-bold">
             <i data-lucide="calendar" className="w-4 h-4 text-slate-400"></i>
-            <input type="month" value=${targetMonth} onChange=${(e) => setTargetMonth(e.target.value)} className="bg-transparent font-bold text-slate-700 border-none outline-none text-sm cursor-pointer" />
+            <input type="month" value=${targetMonth} onChange=${(e) => setTargetMonth(e.target.value)} className="bg-transparent font-bold text-slate-700 dark:text-slate-200 border-none outline-none text-sm cursor-pointer" />
           </div>
         </div>
-      </div>
+      <//>
 
-      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-        <div className="flex justify-between items-center mb-4 border-b pb-2">
-          <h3 className="text-sm sm:text-base font-bold text-slate-700 uppercase tracking-widest">
+      <${Card} className="p-5 sm:p-6 space-y-4">
+        <div className="flex justify-between items-center mb-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <h3 className="text-xs sm:text-sm font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest font-outfit">
             ${targetMonth} 예산 현황
           </h3>
         </div>
 
         ${budgetDataList.budgeted.length === 0 && budgetDataList.other.budget === 0 && html`
-          <div className="text-slate-400 text-sm text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-            <p className="mb-3 font-semibold">설정된 예산이 없습니다.</p>
+          <div className="text-slate-400 dark:text-slate-300 text-sm text-center py-12 bg-slate-50/50 dark:bg-[#0f1524]/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+            <p className="mb-4 font-extrabold text-slate-500 dark:text-slate-300">설정된 예산이 없습니다.</p>
             <${Button} onClick=${openEditModal} variant="secondary" className="mx-auto text-xs">예산 설정하기<//>
           </div>
         `}
@@ -1018,35 +1046,35 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
               const spentPct = item.budget > 0 ? Math.min(100, Math.round((item.spent / item.budget) * 100)) : 0;
               const isOver = item.spent > item.budget;
               return html`
-                <div key=${item.id} className="border border-slate-100 rounded-xl p-4 hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="font-extrabold text-slate-800 text-sm sm:text-base flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-indigo-50 text-indigo-600">
+                <div key=${item.id} className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-center mb-2.5">
+                    <div className="font-extrabold text-slate-800 dark:text-slate-100 text-sm sm:text-base flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-100/20">
                         지정예산
                       </span>
                       ${item.name}
                     </div>
                     <div className="text-right text-xs">
-                      <span className="font-mono text-slate-400">사용률 ${spentPct}%</span>
+                      <span className="font-mono text-slate-400 dark:text-slate-500">사용률 ${spentPct}%</span>
                     </div>
                   </div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-3">
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden mb-3">
                     <div 
-                      className=${`h-full rounded-full transition-all duration-500 ${isOver ? 'bg-red-500' : 'bg-indigo-600'}`}
+                      className=${`h-full rounded-full transition-all duration-500 ${isOver ? 'bg-gradient-to-r from-red-500 to-rose-600' : 'bg-gradient-to-r from-indigo-500 to-violet-600'}`}
                       style=${{ width: `${spentPct}%` }}
                     ></div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    <div className="bg-slate-50 p-2 rounded-lg">
-                      <div className="text-[9px] font-black text-slate-400 uppercase">예산액</div>
-                      <div className="font-mono font-bold text-slate-700">${item.budget.toLocaleString()}원</div>
+                    <div className="bg-slate-50 dark:bg-[#1e293b]/60 p-2.5 rounded-xl border border-transparent dark:border-slate-800/40">
+                      <div className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase mb-0.5 font-outfit">예산액</div>
+                      <div className="font-mono font-black text-slate-700 dark:text-slate-200">${item.budget.toLocaleString()}원</div>
                     </div>
-                    <div className="bg-slate-50 p-2 rounded-lg">
-                      <div className="text-[9px] font-black text-slate-400 uppercase">사용액</div>
-                      <div className="font-mono font-bold text-slate-700">${item.spent.toLocaleString()}원</div>
+                    <div className="bg-slate-50 dark:bg-[#1e293b]/60 p-2.5 rounded-xl border border-transparent dark:border-slate-800/40">
+                      <div className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase mb-0.5 font-outfit">사용액</div>
+                      <div className="font-mono font-black text-slate-700 dark:text-slate-200">${item.spent.toLocaleString()}원</div>
                     </div>
-                    <div className=${`p-2 rounded-lg font-bold ${item.remaining >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                      <div className="text-[9px] font-black uppercase">${item.remaining >= 0 ? '남은예산' : '예산초과'}</div>
+                    <div className=${`p-2.5 rounded-xl font-bold border ${item.remaining >= 0 ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-100/55 dark:border-emerald-500/20' : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-rose-400 border-red-100/55 dark:border-red-500/20'}`}>
+                      <div className="text-[9px] font-black uppercase mb-0.5 font-outfit">${item.remaining >= 0 ? '남은예산' : '예산초과'}</div>
                       <div className="font-mono font-black">${Math.abs(item.remaining).toLocaleString()}원</div>
                     </div>
                   </div>
@@ -1054,53 +1082,53 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
               `;
             })}
 
-            <div className="border border-slate-100 rounded-xl p-4 hover:shadow-md transition-shadow bg-slate-50/50">
-              <div className="flex justify-between items-center mb-2">
-                <div onClick=${() => setIsOtherExpanded(!isOtherExpanded)} className="font-extrabold text-slate-800 text-sm sm:text-base flex items-center gap-2 cursor-pointer select-none hover:text-slate-600">
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-200 text-slate-600">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 hover:shadow-md transition-shadow bg-slate-50/30 dark:bg-[#131b2e]/30">
+              <div className="flex justify-between items-center mb-2.5">
+                <div onClick=${() => setIsOtherExpanded(!isOtherExpanded)} className="font-extrabold text-slate-800 dark:text-slate-100 text-sm sm:text-base flex items-center gap-2 cursor-pointer select-none hover:text-slate-600 dark:hover:text-white">
+                  <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                     공통예산
                   </span>
                   기타비용
                   <i data-lucide=${isOtherExpanded ? "chevron-up" : "chevron-down"} className="w-4 h-4 text-slate-400 inline"></i>
                 </div>
                 <div className="text-right text-xs">
-                  <span className="font-mono text-slate-400">
+                  <span className="font-mono text-slate-400 dark:text-slate-300">
                     사용률 ${budgetDataList.other.budget > 0 ? Math.round((budgetDataList.other.spent / budgetDataList.other.budget) * 100) : 0}%
                   </span>
                 </div>
               </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-3">
+              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden mb-3">
                 <div 
-                  className=${`h-full rounded-full transition-all duration-500 ${budgetDataList.other.spent > budgetDataList.other.budget ? 'bg-red-500' : 'bg-slate-500'}`}
+                  className=${`h-full rounded-full transition-all duration-500 ${budgetDataList.other.spent > budgetDataList.other.budget ? 'bg-gradient-to-r from-red-500 to-rose-600' : 'bg-gradient-to-r from-slate-400 to-slate-500'}`}
                   style=${{ width: `${budgetDataList.other.budget > 0 ? Math.min(100, Math.round((budgetDataList.other.spent / budgetDataList.other.budget) * 100)) : 0}%` }}
                 ></div>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="bg-slate-100 p-2 rounded-lg">
-                  <div className="text-[9px] font-black text-slate-400 uppercase">예산액</div>
-                  <div className="font-mono font-bold text-slate-700">${budgetDataList.other.budget.toLocaleString()}원</div>
+                <div className="bg-white dark:bg-[#131b2e]/60 p-2.5 rounded-xl border border-transparent dark:border-slate-800/40">
+                  <div className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase mb-0.5 font-outfit">예산액</div>
+                  <div className="font-mono font-black text-slate-700 dark:text-slate-200">${budgetDataList.other.budget.toLocaleString()}원</div>
                 </div>
-                <div className="bg-slate-100 p-2 rounded-lg">
-                  <div className="text-[9px] font-black text-slate-400 uppercase">사용액</div>
-                  <div className="font-mono font-bold text-slate-700">${budgetDataList.other.spent.toLocaleString()}원</div>
+                <div className="bg-white dark:bg-[#131b2e]/60 p-2.5 rounded-xl border border-transparent dark:border-slate-800/40">
+                  <div className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase mb-0.5 font-outfit">사용액</div>
+                  <div className="font-mono font-black text-slate-700 dark:text-slate-200">${budgetDataList.other.spent.toLocaleString()}원</div>
                 </div>
-                <div className=${`p-2 rounded-lg font-bold ${budgetDataList.other.remaining >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                  <div className="text-[9px] font-black uppercase">${budgetDataList.other.remaining >= 0 ? '남은예산' : '예산초과'}</div>
+                <div className=${`p-2.5 rounded-xl font-bold border ${budgetDataList.other.remaining >= 0 ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-100/55 dark:border-emerald-500/20' : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-rose-400 border-red-100/55 dark:border-red-500/20'}`}>
+                  <div className="text-[9px] font-black uppercase mb-0.5 font-outfit">${budgetDataList.other.remaining >= 0 ? '남은예산' : '예산초과'}</div>
                   <div className="font-mono font-black">${Math.abs(budgetDataList.other.remaining).toLocaleString()}원</div>
                 </div>
               </div>
 
               ${isOtherExpanded && html`
-                <div className="mt-4 pt-3 border-t border-slate-200 bg-white p-3 rounded-xl space-y-2 animate-in slide-in-from-top-2 duration-200">
-                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">예산 미배정 계정별 지출액</div>
+                <div className="mt-4 pt-3.5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#131b2e]/70 p-3 rounded-2xl space-y-2 animate-in slide-in-from-top-2 duration-200">
+                  <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 font-outfit">예산 미배정 계정별 지출액</div>
                   ${budgetDataList.unbudgeted.length === 0 ? html`
-                    <p className="text-xs text-slate-400 italic text-center py-2">지출 내역이 없습니다.</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-300 italic text-center py-2">지출 내역이 없습니다.</p>
                   ` : html`
-                    <div className="divide-y divide-slate-100">
+                    <div className="divide-y divide-slate-100 dark:divide-slate-850">
                       ${budgetDataList.unbudgeted.map(item => html`
-                        <div key=${item.id} className="flex justify-between py-2 text-xs">
-                          <span className="text-slate-600 font-medium">${item.name}</span>
-                          <span className="font-mono font-bold text-slate-800">${item.spent.toLocaleString()}원</span>
+                        <div key=${item.id} className="flex justify-between py-2.5 text-xs">
+                          <span className="text-slate-600 dark:text-slate-400 font-bold">${item.name}</span>
+                          <span className="font-mono font-black text-slate-800 dark:text-slate-100">${item.spent.toLocaleString()}원</span>
                         </div>
                       `)}
                     </div>
@@ -1109,27 +1137,27 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
               `}
             </div>
 
-            <div className=${`p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center border shadow-inner ${totalRemaining >= 0 ? 'bg-indigo-50/50 border-indigo-100' : 'bg-red-50/50 border-red-100'}`}>
-              <div className="shrink-0 font-black mb-2 sm:mb-0 text-center sm:text-left">
-                <h4 className="font-black text-sm sm:text-base uppercase tracking-tighter text-slate-500">총 예산 대비 요약</h4>
-                <div className="text-[10px] text-slate-400 mt-0.5">총 예산 ${totalBudget.toLocaleString()}원 | 총 지출 ${totalSpent.toLocaleString()}원</div>
+            <div className=${`p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-center border shadow-inner ${totalRemaining >= 0 ? 'bg-indigo-50/40 dark:bg-indigo-950/20 border-indigo-100/60 dark:border-indigo-900/30' : 'bg-red-50/40 dark:bg-red-950/20 border-red-100/60 dark:border-red-900/30'}`}>
+              <div className="shrink-0 font-black mb-3 sm:mb-0 text-center sm:text-left">
+                <h4 className="font-black text-sm sm:text-base uppercase tracking-tight text-slate-500 dark:text-slate-400 font-outfit">총 예산 대비 요약</h4>
+                <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">총 예산 ${totalBudget.toLocaleString()}원 | 총 지출 ${totalSpent.toLocaleString()}원</div>
               </div>
               <div className="text-right">
-                <span className="text-[10px] font-black text-slate-400 mr-2">
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-300 mr-2 font-outfit uppercase">
                   ${totalRemaining >= 0 ? '총 남은예산' : '총 예산초과'}
                 </span>
-                <span className=${`font-mono text-xl sm:text-3xl font-black ${totalRemaining >= 0 ? 'text-indigo-600' : 'text-red-500'}`}>
+                <span className=${`font-mono text-xl sm:text-3xl font-black ${totalRemaining >= 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-red-500 dark:text-rose-400'}`}>
                   ${Math.abs(totalRemaining).toLocaleString()}원
                 </span>
               </div>
             </div>
           </div>
         `}
-      </div>
+      <//>
 
       <${Modal} isOpen=${isEditModalOpen} onClose=${() => setIsEditModalOpen(false)} title="${targetMonth} 예산 수정" maxWidth="max-w-4xl" zIndex="z-[110]">
         <div className="space-y-4">
-          <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100 mb-2 font-medium leading-relaxed">
+          <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#1e293b] p-3 rounded-xl border border-slate-100 dark:border-slate-800 mb-2 font-medium leading-relaxed">
             각 비용 계정과목의 한 달 예산을 설정하세요. 여기에 명시하지 않은 모든 비용 항목은 자동 계산되어 <strong>기타비용</strong>에 합산됩니다.
           </div>
 
@@ -1138,23 +1166,23 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
               <div key=${idx} className="flex gap-2 items-center animate-in slide-in-from-left-2">
                 <button
                   onClick=${() => setActiveBudgetPicker({ index: idx })}
-                  className="flex-1 p-2.5 rounded-xl bg-slate-50 text-xs font-bold border border-slate-200 text-left truncate hover:bg-indigo-50 hover:border-indigo-200 transition-all text-slate-700"
+                  className="flex-1 p-3 rounded-xl bg-slate-50 dark:bg-[#1e293b] text-xs font-bold border border-slate-200 dark:border-slate-800 text-left truncate hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 hover:border-indigo-200 dark:hover:border-indigo-800 transition-all text-slate-700 dark:text-slate-200"
                 >
                   ${getAccountName(row.accountId)}
                 </button>
                 <div className="relative w-40 sm:w-48">
                   <input
                     type="number"
-                    className="w-full p-2.5 pr-8 rounded-xl border border-slate-200 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-xs sm:text-sm font-bold text-slate-700 bg-white text-right font-mono"
+                    className="w-full p-3 pr-8 rounded-xl border border-slate-200 dark:border-slate-800 outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-950/40 transition-all text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-100 bg-white dark:bg-[#131b2e] text-right font-mono"
                     placeholder="0"
                     value=${row.amount || ''}
                     onChange=${(e) => handleRowAmountChange(idx, e.target.value)}
                   />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">원</span>
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 dark:text-slate-500">원</span>
                 </div>
                 <button
                   onClick=${() => handleRemoveRow(idx)}
-                  className="text-slate-300 hover:text-red-500 p-2.5 transition-colors shrink-0"
+                  className="text-slate-400 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 p-2.5 transition-colors shrink-0"
                 >
                   <${TrashIcon} />
                 </button>
@@ -1163,32 +1191,32 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
 
             <button
               onClick=${handleAddRow}
-              className="w-full p-3 text-xs font-bold text-indigo-600 border border-dashed border-indigo-200 rounded-xl hover:bg-indigo-50 transition-all flex items-center justify-center gap-2"
+              className="w-full p-3 text-xs font-bold text-indigo-600 dark:text-indigo-400 border border-dashed border-indigo-200 dark:border-indigo-800/80 rounded-xl hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 transition-all flex items-center justify-center gap-2"
             >
               <i data-lucide="plus-circle" className="w-4 h-4"></i> 행 추가
             </button>
 
-            <div className="border-t border-slate-100 pt-3 mt-3">
-              <div className="flex items-center gap-2 p-3 bg-indigo-50/40 border border-indigo-100/50 rounded-xl">
-                <span className="flex-1 font-black text-xs sm:text-sm text-indigo-700">기타비용 (예산 미지정 항목 공통 예산)</span>
+            <div className="border-t border-slate-200 dark:border-slate-800 pt-4 mt-4">
+              <div className="flex items-center gap-2 p-3 bg-indigo-50/40 dark:bg-indigo-950/20 border border-indigo-100/50 dark:border-indigo-900/30 rounded-xl">
+                <span className="flex-1 font-black text-xs sm:text-sm text-indigo-700 dark:text-indigo-400">기타비용 (예산 미지정 항목 공통 예산)</span>
                 <div className="relative w-40 sm:w-48">
                   <input
                     type="number"
-                    className="w-full p-2.5 pr-8 rounded-xl border border-indigo-200 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all text-xs sm:text-sm font-black text-indigo-700 bg-white text-right font-mono"
+                    className="w-full p-3 pr-8 rounded-xl border border-indigo-200 dark:border-indigo-900/40 outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-950/40 transition-all text-xs sm:text-sm font-black text-indigo-700 dark:text-indigo-400 bg-white dark:bg-[#131b2e] text-right font-mono"
                     placeholder="0"
                     value=${editOtherAmount || ''}
                     onChange=${(e) => setEditOtherAmount(Number(e.target.value) || 0)}
                   />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-black text-indigo-400">원</span>
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-black text-indigo-400 dark:text-slate-500">원</span>
                 </div>
                 <div className="w-11 shrink-0"></div>
               </div>
             </div>
           </div>
 
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
-            <span className="font-extrabold text-sm text-slate-600">총 예산 합계</span>
-            <span className="font-mono font-black text-base sm:text-lg text-indigo-600">${editTotal.toLocaleString()}원</span>
+          <div className="bg-slate-50 dark:bg-[#1e293b] p-4 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <span className="font-extrabold text-sm text-slate-600 dark:text-slate-400">총 예산 합계</span>
+            <span className="font-mono font-black text-base sm:text-lg text-indigo-600 dark:text-indigo-400">${editTotal.toLocaleString()}원</span>
           </div>
 
           <div className="flex gap-3 justify-end pt-3">
@@ -1204,10 +1232,37 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
     </div>`;
 };
 
-// --- App Component ---
+// --- 메인 App 컴포넌트 ---
 const App = () => {
-  const { data, setData, loading, error, getAccountById, saveTransaction, deleteTransaction, saveSettingsData, saveBudget, flatAccounts, reload } = useAccounting();
+  const { data, setData, loading, error, getAccountById, saveTransaction, deleteTransaction, saveSettingsData, saveBudget, flatAccounts, reload, runGasCommand } = useAccounting();
   
+  // 테마 모드 상태 정의 (React State 및 LocalStorage 연동)
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof google === 'undefined') {
+      const saved = localStorage.getItem('darkMode');
+      if (saved !== null) return JSON.parse(saved);
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false; // GAS 환경 내 기본 라이트
+  });
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(prev => {
+      const next = !prev;
+      localStorage.setItem('darkMode', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // 다크모드 HTML 클래스 제어
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
   const [isDirty, setIsDirty] = useState(false);
   const [currentView, setCurrentView] = useState('CALENDAR');
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 1024);
@@ -1232,6 +1287,11 @@ const App = () => {
     credits: [{ accountId: '', amount: 0 }],
     memo: ''
   });
+
+  const [entryMode, setEntryMode] = useState('normal'); // 'normal' | 'continuous'
+  const [startMonth, setStartMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [endMonth, setEndMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [repeatDay, setRepeatDay] = useState(new Date().getDate());
 
   const [addingToCategory, setAddingToCategory] = useState(null);
   const [draggedAccountId, setDraggedAccountId] = useState(null);
@@ -1276,7 +1336,7 @@ const App = () => {
   };
 
   useEffect(() => { if (statusMessage) { const t = setTimeout(() => setStatusMessage(null), 3000); return () => clearTimeout(t); } }, [statusMessage]);
-  useEffect(() => { setTimeout(() => lucide.createIcons(), 50); });
+  useEffect(() => { setTimeout(() => { if(window.lucide) window.lucide.createIcons(); }, 50); });
 
   useEffect(() => {
     const handleVisibilityChange = async () => {
@@ -1433,16 +1493,63 @@ const App = () => {
     if (totalDebitSum !== totalCreditSum || totalDebitSum === 0) return;
     setIsSavingEntry(true);
     try {
-      const newTransaction = {
-        id: editingTransaction ? editingTransaction.id : `T-${Date.now()}`,
-        date: entryRows.date,
-        debits: entryRows.debits.filter(d => d.accountId && d.amount > 0).map(d => ({ accountId: d.accountId, amount: d.amount, tag: d.tag || '' })),
-        credits: entryRows.credits.filter(c => c.accountId && c.amount > 0).map(c => ({ accountId: c.accountId, amount: c.amount, tag: c.tag || '' })),
-        memo: entryRows.memo || '거래 내역'
-      };
-      await saveTransaction(newTransaction);
+      if (!editingTransaction && entryMode === 'continuous') {
+        // 연속/반복 입력 모드
+        if (startMonth > endMonth) {
+          alert("시작 월은 종료 월보다 이전이어야 합니다.");
+          setIsSavingEntry(false);
+          return;
+        }
+
+        const txs = [];
+        let currentDate = new Date(startMonth + '-01');
+        const endDate = new Date(endMonth + '-01');
+        const ts = Date.now();
+        let idx = 0;
+
+        while (currentDate <= endDate) {
+          const yr = currentDate.getFullYear();
+          const mth = currentDate.getMonth();
+          const lastDay = new Date(yr, mth + 1, 0).getDate();
+          const targetDay = Math.min(repeatDay, lastDay);
+          const dateStr = `${yr}-${String(mth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
+
+          txs.push({
+            id: `T-${ts}-${idx}`,
+            date: dateStr,
+            debits: entryRows.debits.filter(d => d.accountId && d.amount > 0).map(d => ({ accountId: d.accountId, amount: d.amount, tag: d.tag || '' })),
+            credits: entryRows.credits.filter(c => c.accountId && c.amount > 0).map(c => ({ accountId: c.accountId, amount: c.amount, tag: c.tag || '' })),
+            memo: entryRows.memo || '거래 내역'
+          });
+
+          currentDate.setMonth(currentDate.getMonth() + 1);
+          idx++;
+        }
+
+        // 로컬 상태 대량 업데이트
+        setData(prev => ({
+          ...prev,
+          transactions: [...prev.transactions, ...txs]
+        }));
+
+        // 백엔드(GAS) 저장
+        await Promise.all(txs.map(tx => runGasCommand('saveTransaction', tx)));
+      } else {
+        // 일반 입력 또는 수정 모드
+        const newTransaction = {
+          id: editingTransaction ? editingTransaction.id : `T-${Date.now()}`,
+          date: entryRows.date,
+          debits: entryRows.debits.filter(d => d.accountId && d.amount > 0).map(d => ({ accountId: d.accountId, amount: d.amount, tag: d.tag || '' })),
+          credits: entryRows.credits.filter(c => c.accountId && c.amount > 0).map(c => ({ accountId: c.accountId, amount: c.amount, tag: c.tag || '' })),
+          memo: entryRows.memo || '거래 내역'
+        };
+        await saveTransaction(newTransaction);
+      }
       setIsEntryModalOpen(false); setEditingTransaction(null);
       setEntryRows({ date: new Date().toISOString().split('T')[0], debits: [{ accountId: '', amount: 0, tag: '' }], credits: [{ accountId: '', amount: 0, tag: '' }], memo: '' });
+    } catch (e) {
+      alert("거래 저장 실패: " + e);
+      reload();
     } finally {
       setIsSavingEntry(false);
     }
@@ -1572,13 +1679,32 @@ const App = () => {
   if (error) throw new Error(error);
 
   return html`
-    <div className="flex flex-col md:flex-row h-screen bg-slate-50 overflow-hidden text-slate-900">
-      ${loading && html`<div className="loading-overlay"><div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div><p className="font-bold text-indigo-600 text-sm">데이터 동기화 중...</p></div>`}
-      ${statusMessage && html`<div className="fixed top-4 right-4 z-[300] p-4 rounded-2xl shadow-2xl border bg-emerald-50 border-emerald-200 text-emerald-800 font-bold text-sm">✓ ${statusMessage.text}</div>`}
+    <div className="flex flex-col md:flex-row h-screen bg-[#f8fafc] dark:bg-[#080c16] text-[#1e293b] dark:text-slate-100 overflow-hidden theme-transition">
+      
+      <!-- 다크모드/블러 향상된 로딩 오버레이 -->
+      ${loading && html`
+        <div className="loading-overlay">
+          <div className="relative w-16 h-16 flex items-center justify-center mb-4">
+            <div className="absolute w-12 h-12 border-4 border-indigo-500/20 dark:border-indigo-500/10 rounded-full"></div>
+            <div className="absolute w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            <i data-lucide="refresh-cw" className="w-5 h-5 text-indigo-500 animate-pulse"></i>
+          </div>
+          <p className="font-extrabold text-indigo-600 dark:text-indigo-400 text-xs font-outfit uppercase tracking-widest animate-pulse">데이터 동기화 중...</p>
+        </div>
+      `}
 
+      <!-- 알림 메시지 배너 -->
+      ${statusMessage && html`
+        <div className="fixed top-4 right-4 z-[300] p-4 rounded-2xl shadow-2xl border flex items-center gap-2 bg-white dark:bg-[#131b2e] border-emerald-200 dark:border-emerald-800/80 text-emerald-800 dark:text-emerald-400 font-extrabold text-sm animate-in slide-in-from-top-4 duration-300">
+          <i data-lucide="check-circle" className="w-4 h-4 text-emerald-500"></i>
+          <span>${statusMessage.text}</span>
+        </div>
+      `}
+
+      <!-- 다이얼로그 모달 -->
       <${Modal} isOpen=${confirmDialog !== null} onClose=${() => setConfirmDialog(null)} title=${confirmDialog?.title || '확인'} maxWidth="max-w-md" zIndex="z-[200]">
         <div className="space-y-6 text-center">
-          <p className="font-medium text-slate-600 leading-relaxed text-sm">${confirmDialog?.message}</p>
+          <p className="font-bold text-slate-600 dark:text-slate-300 leading-relaxed text-sm">${confirmDialog?.message}</p>
           <div className="flex gap-3 justify-center pb-2">
             <${Button} variant="secondary" onClick=${() => setConfirmDialog(null)}>취소<//>
             <${Button} onClick=${confirmDialog?.onConfirm}>확인<//>
@@ -1586,12 +1712,13 @@ const App = () => {
         </div>
       <//>
 
-      <aside className=${`sidebar-transition bg-white border-r border-slate-200 shrink-0 flex flex-col overflow-hidden fixed md:relative z-40 shadow-xl md:shadow-none h-full ${isSidebarOpen ? 'w-64' : 'w-0 md:w-20'}`}>
-        <div className="p-6 flex items-center gap-3">
-          <div className="bg-indigo-600 p-2 rounded-xl text-white shadow-lg shrink-0"><i data-lucide="wallet"></i></div>
-          ${isSidebarOpen && html`<span className="font-bold text-xl animate-in fade-in">DoubleBook</span>`}
+      <!-- 사이드바 네비게이션 리디자인 -->
+      <aside className=${`sidebar-transition shrink-0 flex flex-col overflow-hidden fixed md:relative z-40 h-full border-r ${isSidebarOpen ? 'w-64' : 'w-0 md:w-20'} ${isDarkMode ? 'bg-[#0d1324] border-slate-800/80 shadow-2xl md:shadow-none' : 'bg-white border-slate-200/80 shadow-xl md:shadow-none'}`}>
+        <div className="p-6 flex items-center gap-3 border-b border-slate-100 dark:border-slate-800/40 shrink-0">
+          <div className="bg-gradient-to-tr from-indigo-500 to-violet-600 p-2.5 rounded-xl text-white shadow-[0_4px_15px_rgba(99,102,241,0.35)] shrink-0"><i data-lucide="wallet" className="w-5 h-5"></i></div>
+          ${isSidebarOpen && html`<span className="font-extrabold text-lg bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 dark:from-indigo-400 dark:to-violet-500 bg-clip-text text-transparent animate-in fade-in tracking-tight font-outfit">DoubleBook</span>`}
         </div>
-        <nav className="flex-1 px-3 space-y-1 mt-4">
+        <nav className="flex-1 px-3.5 space-y-1.5 mt-5">
           ${[
             { id: 'CALENDAR', label: '캘린더', icon: 'calendar-days' },
             { id: 'BS', label: '재무상태표', icon: 'layout-dashboard' },
@@ -1600,42 +1727,54 @@ const App = () => {
             { id: 'EXPENSE_REPORT', label: '월간손익명세', icon: 'trending-up' },
             { id: 'BUDGET', label: '월별예산', icon: 'piggy-bank' }
           ].map(nav => html`
-            <button key=${nav.id} onClick=${() => { setCurrentView(nav.id); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className=${`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${currentView === nav.id ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-100 text-slate-500'}`}>
-              <i data-lucide=${nav.icon} className="shrink-0"></i>
-              ${isSidebarOpen && html`<span className="font-medium animate-in fade-in whitespace-nowrap">${nav.label}</span>`}
+            <button key=${nav.id} onClick=${() => { setCurrentView(nav.id); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className=${`w-full flex items-center gap-3.5 p-3 rounded-xl transition-all font-extrabold text-sm ${currentView === nav.id ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-[0_4px_15px_rgba(99,102,241,0.3)]' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-100'}`}>
+              <i data-lucide=${nav.icon} className="shrink-0 w-5 h-5"></i>
+              ${isSidebarOpen && html`<span className="animate-in fade-in whitespace-nowrap">${nav.label}</span>`}
             </button>
           `)}
         </nav>
-        <div className="p-3 border-t text-slate-800 space-y-2 mb-4">
-          <button onClick=${() => { setIsSettingsModalOpen(true); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 font-bold transition-colors">
-            <i data-lucide="settings" className="shrink-0"></i>
+        
+        <!-- 사이드바 하단 설정 및 상태창 -->
+        <div className="p-3.5 border-t border-slate-100 dark:border-slate-800/60 text-slate-800 space-y-1.5 shrink-0">
+          <button onClick=${() => { setIsSettingsModalOpen(true); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className="w-full flex items-center gap-3.5 p-3 rounded-xl font-extrabold text-sm transition-colors text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-100">
+            <i data-lucide="settings" className="shrink-0 w-5 h-5"></i>
             ${isSidebarOpen && html`<span className="animate-in fade-in whitespace-nowrap">설정</span>`}
           </button>
         </div>
       </aside>
 
-      ${isSidebarOpen && html`<div onClick=${() => setIsSidebarOpen(false)} className="md:hidden fixed inset-0 bg-black/40 z-30 backdrop-blur-sm animate-in fade-in"></div>`}
+      <!-- 모바일 딤드 백그라운드 -->
+      ${isSidebarOpen && html`<div onClick=${() => setIsSidebarOpen(false)} className="md:hidden fixed inset-0 bg-slate-950/40 dark:bg-slate-900/70 z-30 backdrop-blur-sm animate-in fade-in"></div>`}
 
+      <!-- 메인 컨텐츠 영역 -->
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        <header className="h-14 sm:h-16 bg-white border-b flex items-center justify-between px-3 sm:px-6 shrink-0 z-10 shadow-sm text-slate-800">
-          <div className="flex items-center gap-3 sm:gap-6">
-            <button onClick=${() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500"><i data-lucide=${isSidebarOpen ? 'chevron-left' : 'menu'} className="w-5 h-5"></i></button>
-            <div className="flex items-center gap-1 sm:gap-3 bg-slate-50 px-2 sm:px-3 py-1.5 rounded-xl border border-slate-100 text-slate-700 font-bold">
-              <i data-lucide="calendar" className="text-indigo-500 w-3 h-3 sm:w-4 sm:h-4"></i>
-              <input type="date" className="bg-transparent border-none outline-none text-[11px] sm:text-sm font-bold w-24 sm:w-32 cursor-pointer text-slate-700" value=${standardDate} onChange=${(e) => setStandardDate(e.target.value)} />
+        
+        <!-- 모던 상단 헤더 -->
+        <header className="h-14 sm:h-16 flex items-center justify-between px-3 sm:px-6 shrink-0 z-10 shadow-sm border-b transition-colors bg-white/80 dark:bg-[#0d1324]/85 border-slate-200/85 dark:border-slate-800/80 backdrop-blur-md">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <button onClick=${() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400"><i data-lucide=${isSidebarOpen ? 'chevron-left' : 'menu'} className="w-5 h-5"></i></button>
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-[#1e293b] px-2.5 py-1.5 rounded-xl border border-slate-200/60 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-extrabold">
+              <i data-lucide="calendar" className="text-indigo-500 w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+              <input type="date" className="bg-transparent border-none outline-none text-[11px] sm:text-sm font-bold w-24 sm:w-32 cursor-pointer text-slate-700 dark:text-slate-200" value=${standardDate} onChange=${(e) => setStandardDate(e.target.value)} />
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <${Button} variant="secondary" onClick=${handleClosing} className="text-[11px] sm:text-sm px-3 sm:px-5">
-              <i data-lucide="calculator" className="w-3.5 h-3.5 sm:w-4 sm:h-4"></i><span>결산 실행</span>
+            <!-- 라이트/다크 테마 토글 스위치 -->
+            <button onClick=${toggleDarkMode} className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors" title=${isDarkMode ? "라이트 모드로 전환" : "다크 모드로 전환"}>
+              <i data-lucide=${isDarkMode ? "sun" : "moon"} className="w-4 h-4 sm:w-5 sm:h-5"></i>
+            </button>
+
+            <${Button} variant="secondary" onClick=${handleClosing} className="text-[11px] sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2">
+              <i data-lucide="calculator" className="w-3.5 h-3.5 sm:w-4 sm:h-4"></i><span className="hidden sm:inline">결산 실행</span>
             <//>
-            <${Button} onClick=${() => { setEntryRows({ date: standardDate, debits: [{ accountId: '', amount: 0 }], credits: [{ accountId: '', amount: 0 }], memo: '' }); setIsEntryModalOpen(true); }} className="text-[11px] sm:text-sm px-3 sm:px-5">
+            <${Button} onClick=${() => { setEntryRows({ date: standardDate, debits: [{ accountId: '', amount: 0 }], credits: [{ accountId: '', amount: 0 }], memo: '' }); setEntryMode('normal'); setIsEntryModalOpen(true); }} className="text-[11px] sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2">
               <i data-lucide="plus-circle" className="w-3.5 h-3.5 sm:w-4 sm:h-4"></i><span>거래 입력</span>
             <//>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-3 sm:p-8 pb-24">
+        <!-- 스크롤 뷰포트 -->
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 dark:bg-[#080c16]/30">
           ${currentView === 'CALENDAR' && html`
             <${MonthlyCalendar} 
               accounts=${accounts} 
@@ -1651,53 +1790,90 @@ const App = () => {
               }} 
             />
           `}
+          
+          <!-- 재무상태표 좌우 격리 패널 리디자인 -->
           ${currentView === 'BS' && html`
-            <div className="max-w-6xl mx-auto flex flex-col lg:grid lg:grid-cols-2 lg:gap-px bg-slate-100 lg:rounded-3xl overflow-hidden lg:border shadow-lg rounded-2xl border border-slate-200 text-slate-800">
-              <div className="bg-white p-5 sm:p-8 border-b lg:border-none">
-                <h3 className="text-sm sm:text-xl font-black text-indigo-600 border-b-2 border-indigo-500 pb-2 mb-4 sm:mb-6 uppercase tracking-widest text-center">Assets</h3>
-                <div className="space-y-3 sm:space-y-4 min-h-[100px] sm:min-h-[250px]">
-                  ${accounts.assets.filter(acc => (accountBalances[acc.id] || 0) !== 0).map(acc => html`<div key=${acc.id} className="flex justify-between items-center"><span className="text-xs sm:text-base text-slate-600 font-medium">${acc.name}</span><span className="font-mono font-bold text-sm sm:text-lg">${(accountBalances[acc.id] || 0).toLocaleString()}원</span></div>`)}
+            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6 pb-10">
+              <${Card} className="p-5 sm:p-8 flex flex-col">
+                <div className="flex justify-between items-center border-b-2 border-indigo-500/30 pb-3 mb-6">
+                  <h3 className="text-sm sm:text-lg font-black text-indigo-500 dark:text-indigo-400 font-outfit uppercase tracking-widest">Assets (자산)</h3>
+                  <i data-lucide="trending-up" className="w-5 h-5 text-indigo-500"></i>
                 </div>
-                <div className="mt-6 sm:mt-8 pt-4 border-t-2 border-slate-50 flex justify-between items-center font-black"><span className="text-xs sm:text-lg uppercase">Total Assets</span><span className="font-mono font-black text-lg sm:text-2xl text-indigo-600">${totalAssets.toLocaleString()}원</span></div>
-              </div>
-              <div className="bg-white p-5 sm:p-8 flex flex-col text-slate-800">
-                <div className="flex-1">
-                  <h3 className="text-sm sm:text-xl font-black text-red-500 border-b-2 border-red-500 pb-2 mb-4 sm:mb-6 uppercase tracking-widest text-center">Liabilities</h3>
-                  <div className="space-y-3 sm:space-y-4 mb-4">
-                    ${accounts.liabilities.filter(a => a.name !== '이익잉여금' && (accountBalances[a.id] || 0) !== 0).map(acc => html`<div key=${acc.id} className="flex justify-between items-center"><span className="text-xs sm:text-base text-slate-600 font-medium">${acc.name}</span><span className="font-mono font-bold text-sm sm:text-lg">${Math.abs(accountBalances[acc.id] || 0).toLocaleString()}원</span></div>`)}
+                <div className="space-y-4 flex-1 min-h-[250px]">
+                  ${accounts.assets.filter(acc => (accountBalances[acc.id] || 0) !== 0).map(acc => html`
+                    <div key=${acc.id} className="flex justify-between items-center py-2.5 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/10 px-2 rounded-xl transition-all">
+                      <span className="text-xs sm:text-base text-slate-600 dark:text-slate-400 font-bold">${acc.name}</span>
+                      <${MoneyText} amount=${accountBalances[acc.id] || 0} className="text-sm sm:text-base font-extrabold text-slate-800 dark:text-slate-200" />
+                    </div>
+                  `)}
+                </div>
+                <div className="mt-8 pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center font-black">
+                  <span className="text-xs sm:text-sm font-outfit uppercase text-slate-500 dark:text-slate-300">Total Assets</span>
+                  <span className="font-mono font-black text-base sm:text-xl text-indigo-600 dark:text-indigo-400">${totalAssets.toLocaleString()}원</span>
+                </div>
+              <//>
+
+              <${Card} className="p-5 sm:p-8 flex flex-col">
+                <div className="flex justify-between items-center border-b-2 border-rose-500/30 pb-3 mb-6">
+                  <h3 className="text-sm sm:text-lg font-black text-rose-500 dark:text-rose-400 font-outfit uppercase tracking-widest">Liabilities (부채)</h3>
+                  <i data-lucide="trending-down" className="w-5 h-5 text-rose-500"></i>
+                </div>
+                <div className="space-y-3 mb-6 flex-1">
+                  ${accounts.liabilities.filter(a => a.name !== '이익잉여금' && (accountBalances[a.id] || 0) !== 0).map(acc => html`
+                    <div key=${acc.id} className="flex justify-between items-center py-2.5 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/10 px-2 rounded-xl transition-all">
+                      <span className="text-xs sm:text-base text-slate-600 dark:text-slate-400 font-bold">${acc.name}</span>
+                      <${MoneyText} amount=${Math.abs(accountBalances[acc.id] || 0)} className="text-sm sm:text-base font-extrabold text-slate-800 dark:text-slate-200" />
+                    </div>
+                  `)}
+                </div>
+                <div className="flex justify-between items-center border-t border-dashed border-slate-200 dark:border-slate-800 pt-3 mb-8 font-bold text-slate-700 dark:text-slate-300">
+                  <span className="text-xs sm:text-sm uppercase text-slate-500 font-outfit">Total Liabilities</span>
+                  <span className="font-mono text-sm sm:text-base text-rose-500 dark:text-rose-400">${totalLiabilitiesOnly.toLocaleString()}원</span>
+                </div>
+                
+                <div className="flex justify-between items-center border-b-2 border-emerald-500/30 pb-3 mb-6">
+                  <h3 className="text-sm sm:text-lg font-black text-emerald-500 dark:text-emerald-400 font-outfit uppercase tracking-widest">Equity (자본)</h3>
+                  <i data-lucide="coins" className="w-5 h-5 text-emerald-500"></i>
+                </div>
+                <div className="space-y-3 font-bold mb-4">
+                  <div className="flex justify-between items-center text-xs sm:text-sm text-slate-600 dark:text-slate-400 py-1.5 px-2">
+                    <span>자본금</span>
+                    <span className="font-mono text-slate-800 dark:text-slate-200">${calculatedInitialCapital.toLocaleString()}원</span>
                   </div>
-                  <div className="flex justify-between items-center border-t border-dashed border-slate-200 pt-2 mb-6 sm:mb-8 font-bold text-slate-700">
-                    <span className="text-xs sm:text-sm uppercase text-slate-500">Total Liabilities</span>
-                    <span className="font-mono text-sm sm:text-lg text-red-500">${totalLiabilitiesOnly.toLocaleString()}원</span>
+                  <div className="flex justify-between items-center bg-emerald-50/80 dark:bg-emerald-500/10 p-3 rounded-xl border border-emerald-100 dark:border-emerald-500/20 font-bold text-emerald-700 dark:text-emerald-400">
+                    <span className="text-xs font-black">이익잉여금 (누적)</span>
+                    <span className="font-mono text-xs sm:text-base font-black">${retainedEarningsBalance.toLocaleString()}원</span>
                   </div>
-                  
-                  <h3 className="text-sm sm:text-xl font-black text-emerald-600 border-b-2 border-emerald-500 pb-2 mb-4 sm:mb-6 uppercase tracking-widest text-center">Equity</h3>
-                  <div className="space-y-2 sm:space-y-3 font-bold mb-4">
-                    <div className="flex justify-between items-center text-[11px] sm:text-sm"><span>자본금</span><span className="font-mono">${calculatedInitialCapital.toLocaleString()}원</span></div>
-                    <div className="flex justify-between items-center bg-emerald-50 p-2 sm:p-3 rounded-xl border border-emerald-100 font-bold text-emerald-700"><span className="text-[10px] sm:text-xs">이익잉여금 (누적)</span><span className="font-mono text-xs sm:text-base">${retainedEarningsBalance.toLocaleString()}원</span></div>
-                    <div className="flex justify-between items-center border-t border-slate-50 pt-3"><span className="text-slate-400 text-[10px] sm:text-xs italic">당기순손익 (미결산)</span><span className=${`font-mono text-xs sm:text-base font-bold ${unsettledNetIncome >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>${unsettledNetIncome.toLocaleString()}원</span></div>
-                  </div>
-                  <div className="flex justify-between items-center border-t border-dashed border-slate-200 pt-2 mb-6 sm:mb-8 font-bold text-slate-700">
-                    <span className="text-xs sm:text-sm uppercase text-slate-500">Total Equity</span>
-                    <span className="font-mono text-sm sm:text-lg text-emerald-600">${currentEquity.toLocaleString()}원</span>
+                  <div className="flex justify-between items-center border-t border-slate-100 dark:border-slate-800 pt-3 px-2">
+                    <span className="text-slate-500 dark:text-slate-500 text-xs italic">당기순손익 (미결산)</span>
+                    <span className=${`font-mono text-xs sm:text-base font-black ${unsettledNetIncome >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-rose-400'}`}>${unsettledNetIncome.toLocaleString()}원</span>
                   </div>
                 </div>
-                <div className="mt-6 sm:mt-8 pt-4 border-t-2 border-slate-50 flex justify-between items-center font-black"><span className="text-xs sm:text-lg uppercase">Total Liabilities & Equity</span><span className="font-mono text-lg sm:text-2xl text-indigo-600">${(totalLiabilitiesOnly + currentEquity).toLocaleString()}원</span></div>
-              </div>
+                <div className="flex justify-between items-center border-t border-dashed border-slate-200 dark:border-slate-800 pt-3 mb-8 font-bold text-slate-700 dark:text-slate-200">
+                  <span className="text-xs sm:text-sm uppercase text-slate-500 font-outfit">Total Equity</span>
+                  <span className="font-mono text-sm sm:text-lg text-emerald-600 dark:text-emerald-400">${currentEquity.toLocaleString()}원</span>
+                </div>
+
+                <div className="mt-6 pt-5 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center font-black">
+                  <span className="text-xs sm:text-sm font-outfit uppercase text-slate-500 dark:text-slate-300">Total Liabilities & Equity</span>
+                  <span className="font-mono font-black text-base sm:text-xl text-indigo-600 dark:text-indigo-400">${(totalLiabilitiesOnly + currentEquity).toLocaleString()}원</span>
+                </div>
+              <//>
             </div>
           `}
 
+          <!-- 손익계산서 리디자인 -->
           ${currentView === 'IS' && html`
-            <div className="max-w-4xl mx-auto bg-white rounded-3xl border shadow-md p-5 sm:p-8 space-y-8 sm:space-y-12 text-slate-800">
+            <div className="max-w-4xl mx-auto bg-white dark:bg-[#131b2e]/90 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-md p-5 sm:p-8 space-y-8 sm:space-y-12 text-slate-800 dark:text-slate-200 backdrop-blur-md">
               <section>
-                <div className="flex justify-between items-end border-b-4 border-emerald-500 pb-2 mb-4 sm:mb-6 font-black"><h3 className="text-base sm:text-2xl text-emerald-600 uppercase">I. Revenue</h3><span className="font-mono text-lg sm:text-2xl font-black text-emerald-600">${revenueHierarchy.total.toLocaleString()}원</span></div>
+                <div className="flex justify-between items-end border-b-2 border-emerald-500 dark:border-emerald-600 pb-2 mb-4 sm:mb-6 font-black font-outfit text-emerald-600 dark:text-emerald-400"><h3 className="text-base sm:text-2xl uppercase">I. Revenue</h3><span className="font-mono text-lg sm:text-2xl font-black">${revenueHierarchy.total.toLocaleString()}원</span></div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   ${revenueHierarchy.groups.filter(g => g.subtotal !== 0).map(group => html`
-                    <div key=${group.label} className="bg-slate-50 rounded-2xl p-4 border text-slate-800 font-bold">
-                      <div className="flex justify-between text-[10px] sm:text-xs font-black text-slate-400 uppercase mb-3 border-b pb-1"><span>${group.label}</span><span>${group.subtotal.toLocaleString()}원</span></div>
+                    <div key=${group.label} className="bg-slate-50/50 dark:bg-[#151c2f]/40 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200">
+                      <div className="flex justify-between text-[10px] sm:text-xs font-black text-slate-400 dark:text-slate-500 uppercase mb-3 border-b border-slate-200/40 dark:border-slate-800 pb-1.5 font-outfit"><span>${group.label}</span><span>${group.subtotal.toLocaleString()}원</span></div>
                       <div className="space-y-1">
                         ${group.accounts.map(a => html`
-                          <div key=${a.name} className="flex justify-between text-[11px] sm:text-sm py-0.5 italic"><span>${a.name}</span><span className="font-mono">${a.amount.toLocaleString()}원</span></div>
+                          <div key=${a.name} className="flex justify-between text-xs sm:text-sm py-1 border-b border-transparent hover:border-slate-200 dark:hover:border-slate-800 transition"><span>${a.name}</span><span className="font-mono font-bold">${a.amount.toLocaleString()}원</span></div>
                         `)}
                       </div>
                     </div>
@@ -1705,57 +1881,58 @@ const App = () => {
                 </div>
               </section>
               <section>
-                <div className="flex justify-between items-end border-b-4 border-orange-500 pb-2 mb-4 sm:mb-6 font-black"><h3 className="text-base sm:text-2xl text-orange-600 uppercase">II. Expenses</h3><span className="font-mono text-lg sm:text-2xl font-black text-orange-600">${expensesHierarchy.total.toLocaleString()}원</span></div>
+                <div className="flex justify-between items-end border-b-2 border-orange-500 dark:border-amber-500 pb-2 mb-4 sm:mb-6 font-black font-outfit text-orange-600 dark:text-amber-400"><h3 className="text-base sm:text-2xl uppercase">II. Expenses</h3><span className="font-mono text-lg sm:text-2xl font-black">${expensesHierarchy.total.toLocaleString()}원</span></div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   ${expensesHierarchy.groups.filter(g => g.subtotal !== 0).map(group => html`
-                    <div key=${group.label} className="bg-slate-50 rounded-2xl p-4 border text-slate-800 font-bold">
-                      <div className="flex justify-between text-[10px] sm:text-xs font-black text-slate-400 uppercase mb-3 border-b pb-1"><span>${group.label}</span><span>${group.subtotal.toLocaleString()}원</span></div>
+                    <div key=${group.label} className="bg-slate-50/50 dark:bg-[#151c2f]/40 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200">
+                      <div className="flex justify-between text-[10px] sm:text-xs font-black text-slate-400 dark:text-slate-300 uppercase mb-3 border-b border-slate-200/40 dark:border-slate-800 pb-1.5 font-outfit"><span>${group.label}</span><span>${group.subtotal.toLocaleString()}원</span></div>
                       <div className="space-y-1">
                         ${group.accounts.map(a => html`
-                          <div key=${a.name} className="flex justify-between text-[11px] sm:text-sm py-0.5 italic"><span>${a.name}</span><span className="font-mono">${a.amount.toLocaleString()}원</span></div>
+                          <div key=${a.name} className="flex justify-between text-xs sm:text-sm py-1 border-b border-transparent hover:border-slate-200 dark:hover:border-slate-800 transition"><span>${a.name}</span><span className="font-mono font-bold">${a.amount.toLocaleString()}원</span></div>
                         `)}
                       </div>
                     </div>
                   `)}
                 </div>
               </section>
-              <div className=${`p-5 sm:p-8 rounded-2xl sm:rounded-3xl flex justify-between items-center shadow-inner border-2 sm:border-4 ${reportNetIncome >= 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}><div className="shrink-0 font-black"><h4 className="font-black text-sm sm:text-xl uppercase tracking-tighter text-slate-700">Net Income</h4></div><span className=${`font-mono text-xl sm:text-5xl font-black ${reportNetIncome >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>${reportNetIncome.toLocaleString()}원</span></div>
+              <div className=${`p-5 sm:p-8 rounded-3xl flex justify-between items-center shadow-inner border-2 ${reportNetIncome >= 0 ? 'bg-emerald-50/80 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20 text-emerald-800 dark:text-emerald-400' : 'bg-red-50/80 dark:bg-red-500/10 border-red-100 dark:border-red-500/20 text-red-800 dark:text-rose-400'}`}><div className="shrink-0 font-black"><h4 className="font-black text-sm sm:text-xl uppercase tracking-tighter text-slate-700 dark:text-slate-300 font-outfit">Net Income</h4></div><span className=${`font-mono text-xl sm:text-5xl font-black ${reportNetIncome >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-rose-400'}`}>${reportNetIncome.toLocaleString()}원</span></div>
             </div>
           `}
 
+          <!-- 총계정원장 리디자인 -->
           ${currentView === 'GL' && html`
             <div className="max-w-6xl mx-auto space-y-6 pb-10">
-              <${Card} className="flex flex-col sm:flex-row items-center gap-3 !p-4">
-                <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100 w-full sm:w-auto">
+              <${Card} className="flex flex-col sm:flex-row items-center gap-3.5 !p-4 bg-white dark:bg-[#131b2e]/90 border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-2 bg-slate-50 dark:bg-[#1e293b] p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-800 w-full sm:w-auto">
                   <i data-lucide="calendar" className="text-slate-400 w-4 h-4 shrink-0"></i>
-                  <input type="date" className="bg-transparent outline-none font-bold text-slate-600 text-[11px] sm:text-sm cursor-pointer" value=${searchDateRange.start} onChange=${e => setSearchDateRange({...searchDateRange, start: e.target.value})} />
-                  <span className="text-slate-300">~</span>
-                  <input type="date" className="bg-transparent outline-none font-bold text-slate-600 text-[11px] sm:text-sm cursor-pointer" value=${searchDateRange.end} onChange=${e => setSearchDateRange({...searchDateRange, end: e.target.value})} />
+                  <input type="date" className="bg-transparent outline-none font-bold text-slate-600 dark:text-slate-300 text-[11px] sm:text-sm cursor-pointer" value=${searchDateRange.start} onChange=${e => setSearchDateRange({...searchDateRange, start: e.target.value})} />
+                  <span className="text-slate-400 dark:text-slate-600">~</span>
+                  <input type="date" className="bg-transparent outline-none font-bold text-slate-600 dark:text-slate-300 text-[11px] sm:text-sm cursor-pointer" value=${searchDateRange.end} onChange=${e => setSearchDateRange({...searchDateRange, end: e.target.value})} />
                   ${(searchDateRange.start || searchDateRange.end) && html`<button onClick=${() => setSearchDateRange({start: '', end: ''})} className="ml-1 text-slate-400 hover:text-red-500"><i data-lucide="x-circle" className="w-4 h-4"></i></button>`}
                 </div>
-                <div className="flex-1 flex items-center gap-2 w-full">
+                <div className="flex-1 flex items-center gap-2 w-full px-2">
                   <i data-lucide="search" className="text-slate-400 shrink-0"></i>
-                  <input className="flex-1 bg-transparent outline-none font-bold text-slate-700 text-sm sm:text-base" placeholder="메모, 날짜, 계정과목명으로 실시간 검색..." value=${searchTerm} onChange=${e => setSearchTerm(e.target.value)} />
+                  <input className="flex-1 bg-transparent outline-none font-extrabold text-slate-700 dark:text-slate-100 text-sm sm:text-base placeholder:text-slate-400 dark:placeholder:text-slate-500 font-bold" placeholder="메모, 날짜, 계정과목명으로 실시간 검색..." value=${searchTerm} onChange=${e => setSearchTerm(e.target.value)} />
                 </div>
               <//>
 
               ${(searchTerm || searchDateRange.start || searchDateRange.end) ? html`
                 <${Card}>
-                  <div className="border-b px-5 py-4 bg-slate-50"><h3 className="font-black uppercase tracking-widest text-sm text-slate-800">검색 결과 (${filteredTxs.length}건)</h3></div>
+                  <div className="border-b border-slate-100 dark:border-slate-800 px-5 py-4 bg-slate-50 dark:bg-[#0f1524]/60"><h3 className="font-black uppercase tracking-widest text-sm text-slate-800 dark:text-slate-200 font-outfit">검색 결과 (${filteredTxs.length}건)</h3></div>
                   <div className="p-5 space-y-3">
-                    ${filteredTxs.length === 0 && html`<p className="text-center text-slate-400 py-8 text-sm">검색 결과가 없습니다.</p>`}
+                    ${filteredTxs.length === 0 && html`<p className="text-center text-slate-400 dark:text-slate-300 py-8 text-sm">검색 결과가 없습니다.</p>`}
                     ${filteredTxs.map(t => html`
-                      <div key=${t.id} onClick=${()=>{setEditingTransaction(t); setEntryRows({date:t.date, debits:t.debits, credits:t.credits, memo:t.memo}); setIsEntryModalOpen(true);}} className="p-4 border border-slate-100 bg-slate-50 rounded-xl hover:shadow-md transition-shadow cursor-pointer">
-                        <div className="text-xs text-slate-400 font-black mb-1">${t.date}</div>
-                        <div className="font-bold text-slate-700 mb-3">${t.memo || '내역 없음'}</div>
-                        <div className="grid grid-cols-2 gap-4 text-sm bg-white p-3 rounded-lg border border-slate-100">
+                      <div key=${t.id} onClick=${()=>{setEditingTransaction(t); setEntryRows({date:t.date, debits:t.debits, credits:t.credits, memo:t.memo}); setIsEntryModalOpen(true);}} className="p-4 border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-[#151c2f]/40 rounded-2xl hover:shadow-md transition-shadow cursor-pointer">
+                        <div className="text-xs text-slate-400 dark:text-slate-500 font-black mb-1 font-outfit">${t.date}</div>
+                        <div className="font-extrabold text-slate-800 dark:text-slate-200 mb-3 text-sm sm:text-base">${t.memo || '내역 없음'}</div>
+                        <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm bg-white dark:bg-[#0d1222] p-3 rounded-xl border border-slate-100/80 dark:border-slate-800/80 shadow-sm">
                           <div>
-                            <div className="text-[10px] text-slate-400 uppercase font-black mb-1 border-b pb-1">차변 (Debit)</div>
-                            ${t.debits.map((d, i) => html`<div key=${i} className="flex justify-between items-center py-0.5"><span className="text-indigo-600 font-medium text-xs">${getAccountById(d.accountId).name}</span><${MoneyText} amount=${d.amount} className="text-xs" /></div>`)}
+                            <div className="text-[10px] text-slate-400 dark:text-slate-300 uppercase font-black mb-1.5 border-b border-slate-100 dark:border-slate-800 pb-1 font-outfit">차변 (Debit)</div>
+                            ${t.debits.map((d, i) => html`<div key=${i} className="flex justify-between items-center py-0.5"><span className="text-indigo-600 dark:text-indigo-400 font-bold text-xs">${getAccountById(d.accountId).name}</span><${MoneyText} amount=${d.amount} className="text-xs" /></div>`)}
                           </div>
                           <div>
-                            <div className="text-[10px] text-slate-400 uppercase font-black mb-1 border-b pb-1">대변 (Credit)</div>
-                            ${t.credits.map((c, i) => html`<div key=${i} className="flex justify-between items-center py-0.5"><span className="text-red-500 font-medium text-xs">${getAccountById(c.accountId).name}</span><${MoneyText} amount=${c.amount} className="text-xs" /></div>`)}
+                            <div className="text-[10px] text-slate-400 dark:text-slate-300 uppercase font-black mb-1.5 border-b border-slate-100 dark:border-slate-800 pb-1 font-outfit">대변 (Credit)</div>
+                            ${t.credits.map((c, i) => html`<div key=${i} className="flex justify-between items-center py-0.5"><span className="text-red-500 dark:text-rose-400 font-bold text-xs">${getAccountById(c.accountId).name}</span><${MoneyText} amount=${c.amount} className="text-xs" /></div>`)}
                           </div>
                         </div>
                       </div>
@@ -1763,9 +1940,21 @@ const App = () => {
                   </div>
                 <//>
               ` : html`
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 text-slate-800">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 text-slate-800 dark:text-slate-200">
                   ${['assets', 'liabilities', 'revenue', 'expenses'].map(cat => html`
-                    <div key=${cat} className="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm h-fit"><h3 className="text-[10px] sm:text-xs font-black uppercase text-slate-400 mb-3 text-center tracking-widest">${cat.toUpperCase()} Accounts</h3><div className="space-y-1.5">${(cat === 'liabilities' ? [...(accounts[cat] || []), {id: 'closing_temp', name: '결산(임시)'}] : [...(accounts[cat] || [])]).sort((a,b) => a.name.localeCompare(b.name, 'ko-KR')).map(a => html`<div key=${a.id} className="flex justify-between p-3 bg-slate-50 rounded-xl border border-transparent font-bold"><span className="text-xs sm:text-base">${a.name}</span><span className="font-mono text-sm sm:text-base">${(cat==='liabilities'||cat==='revenue' ? Math.abs(accountBalances[a.id] || 0) : accountBalances[a.id] || 0).toLocaleString()}원</span></div>`)}</div></div>
+                    <${Card} key=${cat} className="p-5 sm:p-6 h-fit">
+                      <h3 className="text-[10px] sm:text-xs font-black uppercase text-slate-400 dark:text-slate-300 mb-4 text-center tracking-widest font-outfit">${cat.toUpperCase()} Accounts</h3>
+                      <div className="space-y-1.5">
+                        ${(cat === 'liabilities' ? [...(accounts[cat] || []), {id: 'closing_temp', name: '결산(임시)'}] : [...(accounts[cat] || [])]).sort((a,b) => a.name.localeCompare(b.name, 'ko-KR')).map(a => html`
+                          <div key=${a.id} className="flex justify-between p-3.5 bg-slate-50 dark:bg-[#1e293b]/60 rounded-xl border border-transparent dark:border-slate-800/60 font-bold transition-all hover:border-slate-200 dark:hover:border-slate-700">
+                            <span className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">${a.name}</span>
+                            <span className="font-mono text-xs sm:text-sm font-black">
+                              ${(cat==='liabilities'||cat==='revenue' ? Math.abs(accountBalances[a.id] || 0) : accountBalances[a.id] || 0).toLocaleString()}원
+                            </span>
+                          </div>
+                        `)}
+                      </div>
+                    <//>
                   `)}
                 </div>
               `}
@@ -1786,46 +1975,52 @@ const App = () => {
         </div>
       </main>
 
+      <!-- 환경설정 모달 창 리디자인 -->
       <${Modal} isOpen=${isSettingsModalOpen} onClose=${() => setIsSettingsModalOpen(false)} title="더블북 환경 설정" maxWidth="max-w-5xl" zIndex="z-[100]">
-        <div className="flex flex-col md:flex-row gap-4 h-[78vh] md:h-[650px] overflow-hidden text-slate-800">
+        <div className="flex flex-col md:flex-row gap-5 h-[78vh] md:h-[650px] overflow-hidden text-slate-800 dark:text-slate-200">
           <div className="flex md:flex-col overflow-x-auto pb-1 md:pb-0 gap-1.5 w-full md:w-48 shrink-0">
-            ${[{ id: 'equity', label: '자본금', icon: 'coins' }, { id: 'accounts', label: '계정과목', icon: 'settings' }, { id: 'tags', label: '태그 관리', icon: 'tag' }, { id: 'editTransactions', label: '거래 관리', icon: 'edit-3' }].map(tab => html`
-              <button key=${tab.id} onClick=${() => setSettingsTab(tab.id)} className=${`flex items-center justify-center md:justify-start gap-2 p-3 sm:p-4 rounded-xl font-bold transition-all flex-1 md:flex-none text-xs sm:text-sm whitespace-nowrap ${settingsTab === tab.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}><i data-lucide=${tab.icon} className="w-4 h-4"></i>${tab.label}</button>
+            ${[
+              { id: 'equity', label: '자본금', icon: 'coins' }, 
+              { id: 'accounts', label: '계정과목', icon: 'settings' }, 
+              { id: 'tags', label: '태그 관리', icon: 'tag' }, 
+              { id: 'editTransactions', label: '거래 관리', icon: 'edit-3' }
+            ].map(tab => html`
+              <button key=${tab.id} onClick=${() => setSettingsTab(tab.id)} className=${`flex items-center justify-center md:justify-start gap-2.5 p-3.5 rounded-xl font-bold transition-all flex-1 md:flex-none text-xs sm:text-sm whitespace-nowrap ${settingsTab === tab.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}><i data-lucide=${tab.icon} className="w-4 h-4"></i>${tab.label}</button>
             `)}
             ${isDirty && html`
               <div className="mt-auto pt-4 hidden md:block">
-                <${Button} variant="primary" onClick=${handleSyncSettings} className="w-full bg-orange-500 hover:bg-orange-600 animate-pulse">설정 저장하기<//>
+                <${Button} variant="primary" onClick=${handleSyncSettings} className="w-full bg-orange-500 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700 animate-pulse border-none">설정 저장하기<//>
               </div>
             `}
           </div>
           <div className="flex-1 overflow-y-auto pr-0 md:pr-4 modal-scroll pb-10">
             ${settingsTab === 'equity' && html`
               <div className="space-y-6">
-                <h4 className="text-sm font-black uppercase tracking-widest text-slate-800 ml-1">자본금 및 기초 부채</h4>
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-300 ml-1 font-outfit">자본금 및 기초 부채</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col shadow-sm">
-                    <div className="bg-indigo-600 text-white p-2 text-center text-[10px] font-black uppercase">Debit (차변 - 기초 자산)</div>
-                    <div className="p-3 space-y-2 min-h-[150px] flex-1">
+                  <div className="bg-white dark:bg-[#131b2e]/80 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden flex flex-col shadow-sm">
+                    <div className="bg-indigo-600 text-white p-2.5 text-center text-[10px] font-black uppercase tracking-wider font-outfit">Debit (차변 - 기초 자산)</div>
+                    <div className="p-3.5 space-y-2 min-h-[150px] flex-1">
                       ${(initialSetup.debits || []).map((r, i) => html`
                         <div key=${i} className="flex gap-2 items-center">
-                          <button onClick=${() => setActivePicker({ type: 'setupDebits', index: i })} className="flex-1 p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate">${r.accountId ? getAccountById(r.accountId).name : '자산 선택'}</button>
-                          <input type="number" className="w-20 sm:w-28 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-indigo-600 text-xs sm:text-sm outline-none" value=${r.amount || ''} onChange=${(e) => { const val = Number(e.target.value); setData(prev => { const n = [...prev.initialSetup.debits]; n[i] = { ...n[i], amount: val }; return { ...prev, initialSetup: { ...prev.initialSetup, debits: n } }; }); setIsDirty(true); }} />
-                          <button onClick=${()=>{ setData(prev => { const n = [...prev.initialSetup.debits]; if (n.length > 1) n.splice(i, 1); return { ...prev, initialSetup: { ...prev.initialSetup, debits: n } }; }); setIsDirty(true); }} className="text-slate-300 hover:text-red-500 p-1"><${TrashIcon}/></button>
+                          <button onClick=${() => setActivePicker({ type: 'setupDebits', index: i })} className="flex-1 p-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] text-[11px] font-bold border border-slate-100 dark:border-slate-800 text-left truncate">${r.accountId ? getAccountById(r.accountId).name : '자산 선택'}</button>
+                          <input type="number" className="w-20 sm:w-28 p-2 rounded-xl bg-white dark:bg-[#131b2e] text-right font-black border border-slate-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-400 text-xs sm:text-sm outline-none font-mono" value=${r.amount || ''} onChange=${(e) => { const val = Number(e.target.value); setData(prev => { const n = [...prev.initialSetup.debits]; n[i] = { ...n[i], amount: val }; return { ...prev, initialSetup: { ...prev.initialSetup, debits: n } }; }); setIsDirty(true); }} />
+                          <button onClick=${()=>{ setData(prev => { const n = [...prev.initialSetup.debits]; if (n.length > 1) n.splice(i, 1); return { ...prev, initialSetup: { ...prev.initialSetup, debits: n } }; }); setIsDirty(true); }} className="text-slate-400 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 p-1"><${TrashIcon}/></button>
                         </div>
                       `)}
-                      <button onClick=${() => { setData(prev => ({ ...prev, initialSetup: { ...prev.initialSetup, debits: [...(prev.initialSetup.debits || []), { accountId: '', amount: 0 }] } })); setIsDirty(true); }} className="w-full p-2 mt-2 text-[10px] font-black text-indigo-500 border border-dashed border-indigo-200 rounded-lg hover:bg-indigo-50">+ 자산 추가</button>
+                      <button onClick=${() => { setData(prev => ({ ...prev, initialSetup: { ...prev.initialSetup, debits: [...(prev.initialSetup.debits || []), { accountId: '', amount: 0 }] } })); setIsDirty(true); }} className="w-full p-2.5 mt-2.5 text-[10px] font-black text-indigo-500 dark:text-indigo-400 border border-dashed border-indigo-200 dark:border-indigo-800/80 rounded-xl hover:bg-indigo-50/50 dark:hover:bg-indigo-950/25">+ 자산 추가</button>
                     </div>
-                    <div className="bg-slate-50 p-3 flex justify-between font-black border-t text-xs"><span className="text-[9px] uppercase text-slate-400">Sum of Assets</span><span className="font-mono text-indigo-600 font-black">${setupTotalDebits.toLocaleString()}원</span></div>
+                    <div className="bg-slate-50 dark:bg-[#0f1524] p-3 flex justify-between font-black border-t border-slate-100 dark:border-slate-800 text-xs"><span className="text-[9px] uppercase text-slate-400 dark:text-slate-300 font-outfit">Sum of Assets</span><span className="font-mono text-indigo-600 dark:text-indigo-400 font-black">${setupTotalDebits.toLocaleString()}원</span></div>
                   </div>
-                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col h-fit shadow-sm">
-                    <div className="bg-emerald-600 text-white p-2 text-center text-[10px] font-black uppercase">Credit (대변 - 자본/부채)</div>
-                    <div className="p-3 space-y-3">
-                      <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex justify-between items-center"><span className="font-bold text-emerald-800 text-[11px] sm:text-sm font-black">자본금 (자동 계산)</span><span className="font-mono font-black text-emerald-600 text-xs sm:text-lg">${calculatedInitialCapital.toLocaleString()}원</span></div>
-                      <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex justify-between items-center gap-2">
-                        <span className="font-bold text-emerald-800 text-[11px] sm:text-sm font-black">이익잉여금</span>
+                  <div className="bg-white dark:bg-[#131b2e]/80 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden flex flex-col h-fit shadow-sm">
+                    <div className="bg-emerald-600 text-white p-2.5 text-center text-[10px] font-black uppercase tracking-wider font-outfit">Credit (대변 - 자본/부채)</div>
+                    <div className="p-3.5 space-y-3">
+                      <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl border border-emerald-100/50 dark:border-emerald-500/20 flex justify-between items-center"><span className="font-bold text-emerald-800 dark:text-emerald-400 text-[11px] sm:text-sm font-black">자본금 (자동 계산)</span><span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-xs sm:text-lg">${calculatedInitialCapital.toLocaleString()}원</span></div>
+                      <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl border border-emerald-100/50 dark:border-emerald-500/20 flex justify-between items-center gap-2">
+                        <span className="font-bold text-emerald-800 dark:text-emerald-400 text-[11px] sm:text-sm font-black">이익잉여금</span>
                         <input 
                           type="number" 
-                          className="w-24 sm:w-32 p-2 rounded-lg bg-white text-right font-black border border-emerald-200 text-emerald-600 text-xs sm:text-sm outline-none font-mono" 
+                          className="w-24 sm:w-32 p-2 rounded-lg bg-white dark:bg-[#131b2e] text-right font-black border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm outline-none font-mono" 
                           value=${retainedEarningsAmount || ''} 
                           placeholder="0" 
                           onChange=${(e) => { 
@@ -1844,38 +2039,39 @@ const App = () => {
                           }} 
                         />
                       </div>
-                      <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest pt-1 border-t mb-1">기초 부채 내역</div>
+                      <div className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest pt-1.5 border-t border-slate-100 dark:border-slate-800 mb-1 font-outfit">기초 부채 내역</div>
                       ${(initialSetup.credits || []).filter(r => String(r.accountId) !== String(retainedEarningsId)).map((r, i) => {
                         const originalIndex = initialSetup.credits.findIndex(c => c === r);
                         return html`
-                          <div key=${originalIndex} className="flex gap-2 items-center">
-                            <button onClick=${() => setActivePicker({ type: 'setupCredits', index: originalIndex })} className="flex-1 p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate">${r.accountId ? getAccountById(r.accountId).name : '부채 선택'}</button>
-                            <input type="number" className="w-20 sm:w-28 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-red-500 text-xs outline-none" value=${r.amount || ''} onChange=${(e) => { const val = Number(e.target.value); setData(prev => { const n = [...prev.initialSetup.credits]; n[originalIndex] = { ...n[originalIndex], amount: val }; return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} />
-                            <button onClick=${()=>{ setData(prev => { const n = [...prev.initialSetup.credits]; n.splice(originalIndex, 1); return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} className="text-slate-300 hover:text-red-500 p-1"><${TrashIcon}/></button>
+                          <div key=${originalIndex} className="flex gap-2 items-center animate-in slide-in-from-right-2">
+                            <button onClick=${() => setActivePicker({ type: 'setupCredits', index: originalIndex })} className="flex-1 p-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] text-[11px] font-bold border border-slate-100 dark:border-slate-800 text-left truncate">${r.accountId ? getAccountById(r.accountId).name : '부채 선택'}</button>
+                            <input type="number" className="w-20 sm:w-28 p-2 rounded-xl bg-white dark:bg-[#131b2e] text-right font-black border border-slate-200 dark:border-slate-800 text-red-500 dark:text-rose-400 text-xs outline-none font-mono" value=${r.amount || ''} onChange=${(e) => { const val = Number(e.target.value); setData(prev => { const n = [...prev.initialSetup.credits]; n[originalIndex] = { ...n[originalIndex], amount: val }; return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} />
+                            <button onClick=${()=>{ setData(prev => { const n = [...prev.initialSetup.credits]; n.splice(originalIndex, 1); return { ...prev, initialSetup: { ...prev.initialSetup, credits: n } }; }); setIsDirty(true); }} className="text-slate-400 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 p-1"><${TrashIcon}/></button>
                           </div>
                         `;
                       })}
-                      <button onClick=${() => { setData(prev => ({ ...prev, initialSetup: { ...prev.initialSetup, credits: [...(prev.initialSetup.credits || []), { accountId: '', amount: 0 }] } })); setIsDirty(true); }} className="w-full p-2 mt-1 text-[10px] font-black text-red-400 border border-dashed border-red-100 rounded-lg hover:bg-red-50">+ 부채 추가</button>
+                      <button onClick=${() => { setData(prev => ({ ...prev, initialSetup: { ...prev.initialSetup, credits: [...(prev.initialSetup.credits || []), { accountId: '', amount: 0 }] } })); setIsDirty(true); }} className="w-full p-2.5 mt-1 text-[10px] font-black text-red-400 dark:text-red-400 border border-dashed border-red-100 dark:border-slate-800/80 rounded-xl hover:bg-red-50/50 dark:hover:bg-red-950/20">+ 부채 추가</button>
                     </div>
                   </div>
                 </div>
               </div>
             `}
+
             ${settingsTab === 'accounts' && html`
               <div className="space-y-10">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   ${['assets', 'liabilities'].map(cat => html`
-                    <div key=${cat} className="bg-slate-50 p-4 rounded-2xl border shadow-inner h-fit text-slate-800">
-                      <div className="flex justify-between items-center mb-3 text-indigo-500 font-black text-[10px] uppercase"><span>${cat.toUpperCase()} Accounts</span><button onClick=${() => setAddingToCategory(cat)} className="p-1 hover:bg-indigo-100 rounded-full transition-colors"><i data-lucide="plus" className="w-4 h-4"></i></button></div>
+                    <div key=${cat} className="bg-slate-50/50 dark:bg-[#151c2f]/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner h-fit text-slate-800 dark:text-slate-200">
+                      <div className="flex justify-between items-center mb-3 text-indigo-500 dark:text-indigo-400 font-black text-[10px] uppercase font-outfit tracking-wider"><span>${cat.toUpperCase()} Accounts</span><button onClick=${() => setAddingToCategory(cat)} className="p-1 hover:bg-indigo-100/50 dark:hover:bg-slate-800 rounded-full transition-colors"><i data-lucide="plus" className="w-4 h-4"></i></button></div>
                       <div className="space-y-1.5">
                         ${(accounts[cat] || []).filter(a => a.name !== '이익잉여금').map(a => html`
-                          <div key=${a.id} className="flex items-center gap-2 p-2 bg-white rounded-xl border group shadow-sm transition-all hover:border-indigo-200 font-bold">
-                            <input className="flex-1 bg-transparent border-none outline-none font-bold text-xs sm:text-sm text-slate-800" value=${a.name} onChange=${(e) => handleUpdateAccountName(cat, a.id, e.target.value)} />
-                            <button onClick=${() => handleDeleteAccount(cat, a.id)} className="sm:opacity-0 group-hover:opacity-100 text-red-400 p-1.5"><${TrashIcon}/></button>
+                          <div key=${a.id} className="flex items-center gap-2 p-2 bg-white dark:bg-[#131b2e] rounded-xl border border-slate-200 dark:border-slate-800 group shadow-sm transition-all hover:border-indigo-200 dark:hover:border-indigo-800 font-bold">
+                            <input className="flex-1 bg-transparent border-none outline-none font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200" value=${a.name} onChange=${(e) => handleUpdateAccountName(cat, a.id, e.target.value)} />
+                            <button onClick=${() => handleDeleteAccount(cat, a.id)} className="sm:opacity-0 group-hover:opacity-100 text-red-400 p-1.5 transition-opacity"><${TrashIcon}/></button>
                           </div>
                         `)}
                         ${addingToCategory === cat && html`
-                          <div className="p-1"><input autoFocus className="w-full p-2 bg-white rounded-xl border border-indigo-200 text-xs font-bold text-indigo-600 outline-none" placeholder="항목 입력 후 Enter" onBlur=${(e) => handleAddAccount(cat, e.target.value)} onKeyDown=${(e)=>e.key==='Enter'&&e.target.blur()} /></div>
+                          <div className="p-1"><input autoFocus className="w-full p-2.5 bg-white dark:bg-[#131b2e] rounded-xl border border-indigo-200 dark:border-indigo-800 text-xs font-bold text-indigo-600 dark:text-indigo-400 outline-none" placeholder="항목 입력 후 Enter" onBlur=${(e) => handleAddAccount(cat, e.target.value)} onKeyDown=${(e)=>e.key==='Enter'&&e.target.blur()} /></div>
                         `}
                       </div>
                     </div>
@@ -1883,50 +2079,51 @@ const App = () => {
                 </div>
                 <div className="space-y-6">
                   ${['revenue', 'expenses'].map(type => html`
-                    <div key=${type} className="border-t pt-5">
-                      <div className="flex justify-between items-center mb-4"><h5 className="font-black text-indigo-600 uppercase tracking-widest text-[11px]">${type.toUpperCase()} 분류 관리</h5><button onClick=${() => setAddingToCategory(type)} className="text-[10px] bg-indigo-600 text-white px-3 py-1.5 rounded-full font-black shadow-sm">+ 추가</button></div>
+                    <div key=${type} className="border-t border-slate-200 dark:border-slate-800 pt-6">
+                      <div className="flex justify-between items-center mb-4"><h5 className="font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest text-[11px] font-outfit">${type.toUpperCase()} 분류 관리</h5><button onClick=${() => setAddingToCategory(type)} className="text-[10px] bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-full font-black shadow-sm">+ 추가</button></div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         ${['fixed', 'variable'].map(subtype => html`
-                          <div key=${subtype} onDragOver=${handleDragOver} onDrop=${() => handleSubtypeDrop(subtype, type)} className="bg-white border-2 border-slate-50 rounded-2xl p-4 sm:p-5 transition-all shadow-sm min-h-[120px]">
-                            <div className="flex justify-between items-center mb-3 border-b border-slate-50 pb-1.5 text-slate-400 font-black"><span className="uppercase text-[9px] tracking-widest">${subtype === 'fixed' ? '고정 (Fixed)' : '변동 (Variable)'}</span><i data-lucide=${subtype === 'fixed' ? 'lock' : 'zap'} className="w-3 h-3"></i></div>
+                          <div key=${subtype} onDragOver=${handleDragOver} onDrop=${() => handleSubtypeDrop(subtype, type)} className="bg-white dark:bg-[#131b2e]/60 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 sm:p-5 transition-all shadow-sm min-h-[120px]">
+                            <div className="flex justify-between items-center mb-3 border-b border-slate-50 dark:border-slate-800 pb-1.5 text-slate-400 dark:text-slate-300 font-black font-outfit"><span className="uppercase text-[9px] tracking-widest">${subtype === 'fixed' ? '고정 (Fixed)' : '변동 (Variable)'}</span><i data-lucide=${subtype === 'fixed' ? 'lock' : 'zap'} className="w-3 h-3"></i></div>
                             <div className="grid grid-cols-1 gap-1.5">
                               ${accounts[type].filter(a => (a.subtype || 'fixed') === subtype).map(acc => html`
-                                <div key=${acc.id} draggable onDragStart=${() => handleAccountDragStart(acc.id)} className="bg-slate-50 border border-slate-100 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-3 group hover:bg-white hover:border-indigo-100 transition-all text-slate-700 w-full shadow-sm">
-                                  <i data-lucide="grip-vertical" className="text-slate-200 shrink-0 hidden sm:block"></i>
+                                <div key=${acc.id} draggable onDragStart=${() => handleAccountDragStart(acc.id)} className="bg-slate-50 dark:bg-[#151c2f] border border-slate-100 dark:border-slate-800 px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-3 group hover:bg-white dark:hover:bg-[#1e293b] hover:border-indigo-100 dark:hover:border-indigo-900 transition-all text-slate-700 dark:text-slate-200 w-full shadow-sm cursor-grab active:cursor-grabbing">
+                                  <i data-lucide="grip-vertical" className="text-slate-200 dark:text-slate-700 shrink-0 hidden sm:block"></i>
                                   <input className="bg-transparent border-none outline-none flex-1 font-bold min-w-0" value=${acc.name} onChange=${(e) => handleUpdateAccountName(type, acc.id, e.target.value)} />
-                                  <button onClick=${() => handleDeleteAccount(type, acc.id)} className="sm:opacity-0 group-hover:opacity-100 text-red-400 p-1"><i data-lucide="x" className="w-3.5 h-3.5"></i></button>
+                                  <button onClick=${() => handleDeleteAccount(type, acc.id)} className="sm:opacity-0 group-hover:opacity-100 text-red-400 p-1 transition-opacity"><i data-lucide="x" className="w-3.5 h-3.5"></i></button>
                                 </div>
                               `)}
                             </div>
                           </div>
                         `)}
                       </div>
-                      ${addingToCategory === type && html`<div className="mt-3 p-3 bg-indigo-50 rounded-2xl border border-indigo-100 text-center"><input autoFocus className="bg-transparent border-none outline-none font-black text-indigo-600 text-center text-xs w-full" placeholder="항목 입력 후 Enter..." onBlur=${(e) => handleAddAccount(type, e.target.value)} onKeyDown=${(e)=>e.key==='Enter'&&e.target.blur()} /></div>`}
+                      ${addingToCategory === type && html`<div className="mt-3 p-3.5 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-2xl border border-indigo-100 dark:border-indigo-900 text-center animate-in fade-in"><input autoFocus className="bg-transparent border-none outline-none font-black text-indigo-600 dark:text-indigo-400 text-center text-xs w-full" placeholder="항목 입력 후 Enter..." onBlur=${(e) => handleAddAccount(type, e.target.value)} onKeyDown=${(e)=>e.key==='Enter'&&e.target.blur()} /></div>`}
                     </div>
                   `)}
                 </div>
               </div>
             `}
+
             ${settingsTab === 'tags' && html`
               <div className="space-y-6">
                 <div>
-                  <h4 className="text-sm font-black uppercase tracking-widest text-slate-800 ml-1">태그 관리</h4>
-                  <p className="text-[10px] text-slate-400 ml-1 mt-0.5">각 계정과목별로 거래 세부항목 분류를 위한 태그를 지정하세요.</p>
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-300 ml-1 font-outfit">태그 관리</h4>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-300 ml-1 mt-0.5">각 계정과목별로 거래 세부항목 분류를 위한 태그를 지정하세요.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-10">
-                  <div className="md:col-span-1 bg-slate-50 p-4 rounded-2xl border shadow-inner max-h-[450px] overflow-y-auto modal-scroll text-slate-800 flex flex-col">
-                    <div onClick=${() => setIsAccountListOpen(!isAccountListOpen)} className="md:hidden flex justify-between items-center p-1 cursor-pointer select-none border-b pb-2 mb-2">
-                      <span className="text-[11px] uppercase text-indigo-500 font-black tracking-widest">
+                  <div className="md:col-span-1 bg-slate-50/50 dark:bg-[#151c2f]/40 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-inner max-h-[450px] overflow-y-auto modal-scroll text-slate-800 dark:text-slate-200 flex flex-col">
+                    <div onClick=${() => setIsAccountListOpen(!isAccountListOpen)} className="md:hidden flex justify-between items-center p-1 cursor-pointer select-none border-b border-slate-200 dark:border-slate-800 pb-2.5 mb-2">
+                      <span className="text-[10px] uppercase text-indigo-500 dark:text-indigo-400 font-black tracking-widest font-outfit">
                         ${selectedAccountForTag ? `계정: ${getAccountById(selectedAccountForTag.id)?.name}` : '계정과목 선택'}
                       </span>
                       ${isAccountListOpen ? html`<${ChevronUpIcon} className="w-4 h-4 text-indigo-500" />` : html`<${ChevronDownIcon} className="w-4 h-4 text-indigo-500" />`}
                     </div>
-                    <div className="hidden md:block text-[9px] uppercase text-indigo-500 font-black mb-3 tracking-widest">계정과목 선택</div>
+                    <div className="hidden md:block text-[9px] uppercase text-indigo-500 dark:text-indigo-400 font-black mb-3.5 tracking-widest font-outfit">계정과목 선택</div>
                     
                     <div className=${`space-y-4 ` + (isAccountListOpen ? 'block' : 'hidden md:block')}>
                       ${['assets', 'liabilities', 'revenue', 'expenses'].map(cat => html`
-                        <div key=${cat} className="space-y-1">
-                          <div className="text-[8px] font-black text-slate-400 uppercase tracking-wider">${cat === 'assets' ? '자산 (Assets)' : cat === 'liabilities' ? '부채/자본 (Liabilities)' : cat === 'revenue' ? '수익 (Revenue)' : '비용 (Expenses)'}</div>
+                        <div key=${cat} className="space-y-1.5">
+                          <div className="text-[8px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-wider font-outfit">${cat === 'assets' ? '자산 (Assets)' : cat === 'liabilities' ? '부채/자본 (Liabilities)' : cat === 'revenue' ? '수익 (Revenue)' : '비용 (Expenses)'}</div>
                           ${(accounts[cat] || []).filter(a => a.name !== '이익잉여금').map(a => html`
                             <button
                               key=${a.id}
@@ -1934,7 +2131,7 @@ const App = () => {
                                 setSelectedAccountForTag({ category: cat, id: a.id });
                                 setIsAccountListOpen(false);
                               }}
-                              className=${"w-full text-left p-2.5 rounded-xl text-xs font-bold transition-all " + (selectedAccountForTag && selectedAccountForTag.id === a.id ? "bg-indigo-600 text-white shadow-sm" : "bg-white hover:bg-slate-100 text-slate-700 border border-slate-100 shadow-sm")}
+                              className=${"w-full text-left p-2.5 rounded-xl text-xs font-bold transition-all border " + (selectedAccountForTag && selectedAccountForTag.id === a.id ? "bg-indigo-600 text-white border-transparent shadow-md" : "bg-white dark:bg-[#131b2e] hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 border-slate-100/80 dark:border-slate-800/85 shadow-sm")}
                             >
                               ${a.name}
                             </button>
@@ -1944,26 +2141,26 @@ const App = () => {
                     </div>
                   </div>
                   
-                  <div className=${`md:col-span-2 bg-white p-4 rounded-2xl border shadow-sm min-h-[300px] flex flex-col justify-between text-slate-800 ` + (!isAccountListOpen || selectedAccountForTag ? 'block' : 'hidden md:block')}>
+                  <div className=${`md:col-span-2 bg-white dark:bg-[#131b2e]/85 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm min-h-[300px] flex flex-col justify-between text-slate-800 dark:text-slate-200 ` + (!isAccountListOpen || selectedAccountForTag ? 'block' : 'hidden md:block')}>
                     ${selectedAccountForTag ? html`
                       <div className="flex-1 flex flex-col">
-                        <div className="flex justify-between items-center border-b pb-3 mb-4">
-                          <h5 className="font-black text-indigo-600 text-xs sm:text-sm">
+                        <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
+                          <h5 className="font-extrabold text-indigo-600 dark:text-indigo-400 text-xs sm:text-sm">
                             [${getAccountById(selectedAccountForTag.id)?.name}] 태그 목록
                           </h5>
-                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
+                          <span className="text-[9px] text-slate-500 dark:text-slate-500 font-black uppercase tracking-widest font-outfit">
                             태그: ${(getAccountById(selectedAccountForTag.id)?.tags || []).length}개
                           </span>
                         </div>
                         
                         <div className="flex flex-wrap gap-2 mb-6 flex-1 content-start">
                           ${(getAccountById(selectedAccountForTag.id)?.tags || []).length === 0 ? html`
-                            <div className="flex flex-col items-center justify-center py-10 w-full text-slate-300 gap-1.5">
-                              <${TagIcon} className="w-5 h-5 text-slate-300" />
-                              <p className="text-[10px] font-bold">등록된 태그가 없습니다. 아래에서 새 태그를 추가하세요.</p>
+                            <div className="flex flex-col items-center justify-center py-10 w-full text-slate-300 dark:text-slate-700 gap-1.5">
+                              <${TagIcon} className="w-6 h-6 text-slate-300 dark:text-slate-700" />
+                              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-300">등록된 태그가 없습니다. 아래에서 새 태그를 추가하세요.</p>
                             </div>
                           ` : (getAccountById(selectedAccountForTag.id)?.tags || []).map(tag => html`
-                            <span key=${tag} className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 px-3 py-1.5 rounded-full text-xs font-black shadow-sm">
+                            <span key=${tag} className="inline-flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100/50 dark:border-indigo-500/20 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full text-xs font-black shadow-sm">
                               #${tag}
                               <button onClick=${() => handleRemoveTag(selectedAccountForTag.category, selectedAccountForTag.id, tag)} className="text-indigo-400 hover:text-red-500 transition-colors p-0.5">
                                 <${XIcon} className="w-3 h-3 text-indigo-400 hover:text-red-500" />
@@ -1973,13 +2170,13 @@ const App = () => {
                         </div>
                       </div>
                       
-                      <div className="border-t pt-4">
+                      <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
                         <div className="flex gap-2">
                           <input
                             id="new-tag-input"
                             type="text"
                             placeholder="새 태그 이름 입력 후 Enter (예: 외식, 배달)"
-                            className="flex-1 p-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                            className="flex-1 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-[#131b2e] outline-none focus:border-indigo-500 dark:focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-950"
                             onKeyDown=${(e) => {
                               if (e.key === 'Enter') {
                                 handleAddTag(selectedAccountForTag.category, selectedAccountForTag.id, e.target.value);
@@ -1995,15 +2192,15 @@ const App = () => {
                                 input.value = '';
                               }
                             }}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-sm active:scale-95"
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-sm active:scale-95 shrink-0"
                           >
                             추가
                           </button>
                         </div>
                       </div>
                     ` : html`
-                      <div className="flex flex-col items-center justify-center h-full text-slate-300 gap-2 py-20 flex-1">
-                        <${TagIcon} className="w-8 h-8 text-slate-300" />
+                      <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-300 gap-2 py-20 flex-1">
+                        <${TagIcon} className="w-8 h-8 text-slate-300 dark:text-slate-700" />
                         <p className="text-xs font-bold">왼쪽 목록에서 계정과목을 선택하여 태그를 관리하세요.</p>
                       </div>
                     `}
@@ -2011,16 +2208,18 @@ const App = () => {
                 </div>
               </div>
             `}
+
             ${settingsTab === 'editTransactions' && html`
               <div className="space-y-4 pb-10">
-                <div className="flex items-center gap-2 mb-4 bg-white p-3 rounded-xl border border-slate-100 text-slate-800 font-bold overflow-x-auto">
-                  <i data-lucide="search" className="text-slate-300 w-4 h-4 shrink-0"></i><input type="date" className="bg-transparent outline-none font-bold text-[11px] cursor-pointer" value=${editRange.start} onChange=${(e)=>setEditRange({...editRange, start: e.target.value})}/><span className="text-slate-300">~</span><input type="date" className="bg-transparent outline-none font-bold text-[11px] cursor-pointer" value=${editRange.end} onChange=${(e)=>setEditRange({...editRange, end: e.target.value})}/>
+                <div className="flex items-center gap-2 mb-4 bg-white dark:bg-[#131b2e]/80 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 font-bold overflow-x-auto">
+                  <i data-lucide="search" className="text-slate-400 w-4 h-4 shrink-0"></i>
+                  <input type="date" className="bg-transparent outline-none font-bold text-[11px] cursor-pointer text-slate-700 dark:text-slate-200" value=${editRange.start} onChange=${(e)=>setEditRange({...editRange, start: e.target.value})}/><span className="text-slate-400 dark:text-slate-600">~</span><input type="date" className="bg-transparent outline-none font-bold text-[11px] cursor-pointer text-slate-700 dark:text-slate-200" value=${editRange.end} onChange=${(e)=>setEditRange({...editRange, end: e.target.value})}/>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1.5 modal-scroll">
                   ${transactions.filter(t => t.date >= editRange.start && t.date <= editRange.end).sort((a,b) => b.date.localeCompare(a.date)).map(t => html`
-                    <div key=${t.id} onClick=${()=>{setEditingTransaction(t); setEntryRows({date:t.date, debits:t.debits, credits:t.credits, memo:t.memo}); setIsEntryModalOpen(true);}} className="p-3.5 bg-white border rounded-xl flex justify-between cursor-pointer hover:border-indigo-500 transition-all shadow-sm active:bg-indigo-50">
-                      <div><p className="text-[9px] font-black text-slate-400 uppercase">${t.date}</p><p className="font-bold text-xs text-slate-700 mt-0.5">${t.memo || '거래 내역'}</p></div>
-                      <div className="text-right flex flex-col justify-center"><div className="font-mono font-black text-slate-700 text-xs sm:text-base">${(t.debits.reduce((s,d)=>s+d.amount, 0)).toLocaleString()}원</div></div>
+                    <div key=${t.id} onClick=${()=>{setEditingTransaction(t); setEntryRows({date:t.date, debits:t.debits, credits:t.credits, memo:t.memo}); setIsEntryModalOpen(true);}} className="p-3.5 bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-500 transition-all shadow-sm active:bg-indigo-50/50 dark:active:bg-indigo-950/20">
+                      <div><p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase font-outfit">${t.date}</p><p className="font-extrabold text-xs text-slate-700 dark:text-slate-200 mt-1">${t.memo || '거래 내역'}</p></div>
+                      <div className="text-right flex flex-col justify-center"><div className="font-mono font-black text-slate-700 dark:text-slate-100 text-xs sm:text-base">${(t.debits.reduce((s,d)=>s+d.amount, 0)).toLocaleString()}원</div></div>
                     </div>
                   `)}
                 </div>
@@ -2028,112 +2227,152 @@ const App = () => {
             `}
             ${isDirty && html`
               <div className="mt-6 md:hidden">
-                <${Button} variant="primary" onClick=${handleSyncSettings} className="w-full bg-orange-500 hover:bg-orange-600 animate-pulse">설정 변경사항 저장하기<//>
+                <${Button} variant="primary" onClick=${handleSyncSettings} className="w-full bg-orange-500 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700 animate-pulse border-none">설정 변경사항 저장하기<//>
               </div>
             `}
           </div>
         </div>
       <//>
 
+      <!-- 전표 입력 모달 리디자인 -->
       <${Modal} isOpen=${isEntryModalOpen} onClose=${() => {setIsEntryModalOpen(false); setEditingTransaction(null);}} title=${editingTransaction?"전표 수정":"전표 입력"} maxWidth="max-w-6xl" zIndex="z-[120]">
-        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 text-slate-800">
-          <div className="w-full lg:w-48 shrink-0 bg-slate-50 p-4 rounded-2xl border h-fit shadow-inner">
-            <label className="block text-[9px] font-black text-slate-400 uppercase mb-2 text-center lg:text-left">전표 날짜</label>
-            <input type="date" className="w-full p-2.5 rounded-xl border text-xs font-bold outline-none mb-3 shadow-sm bg-white text-slate-700" value=${entryRows.date} onChange=${(e) => setEntryRows({...entryRows, date: e.target.value})} />
-            ${editingTransaction && html`<button onClick=${handleDeleteTransactionWrapper} className="w-full p-3 bg-red-50 text-red-500 rounded-xl font-bold text-[11px] hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i>삭제하기</button>`}
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 text-slate-800 dark:text-slate-200">
+          
+          <!-- 모달 좌측 날짜 설정 사이드바 -->
+          <div className="w-full lg:w-48 shrink-0 bg-slate-50 dark:bg-[#1e293b] p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 h-fit shadow-inner space-y-4">
+            <!-- 모드 선택 버튼 (신규 입력 시에만 노출) -->
+            ${!editingTransaction && html`
+              <div className="flex lg:flex-col gap-2 border-b border-slate-100 dark:border-slate-800 pb-3.5 mb-1.5 shrink-0">
+                <button 
+                  onClick=${() => setEntryMode('normal')}
+                  className=${`flex-1 py-2 px-3 rounded-xl font-bold text-xs transition-all text-center ${entryMode === 'normal' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white dark:bg-[#131b2e] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  일반 입력
+                </button>
+                <button 
+                  onClick=${() => setEntryMode('continuous')}
+                  className=${`flex-1 py-2 px-3 rounded-xl font-bold text-xs transition-all text-center ${entryMode === 'continuous' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white dark:bg-[#131b2e] text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  연속 입력
+                </button>
+              </div>
+            `}
+
+            ${(editingTransaction || entryMode === 'normal') ? html`
+              <div>
+                <label className="block text-[9px] font-black text-slate-500 dark:text-slate-300 mb-2 text-center lg:text-left font-outfit tracking-wider">전표 날짜</label>
+                <input type="date" className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold outline-none mb-3 shadow-sm bg-white dark:bg-[#131b2e] text-slate-700 dark:text-slate-200" value=${entryRows.date} onChange=${(e) => setEntryRows({...entryRows, date: e.target.value})} />
+              </div>
+            ` : html`
+              <div className="space-y-3.5">
+                <div>
+                  <label className="block text-[9px] font-black text-slate-500 dark:text-slate-300 mb-1.5 font-outfit tracking-wider">시작 월</label>
+                  <input type="month" className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-800 text-xs font-bold outline-none shadow-sm bg-white dark:bg-[#131b2e] text-slate-700 dark:text-slate-200" value=${startMonth} onChange=${(e) => setStartMonth(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-slate-500 dark:text-slate-300 mb-1.5 font-outfit tracking-wider">종료 월</label>
+                  <input type="month" className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-800 text-xs font-bold outline-none shadow-sm bg-white dark:bg-[#131b2e] text-slate-700 dark:text-slate-200" value=${endMonth} onChange=${(e) => setEndMonth(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black text-slate-500 dark:text-slate-300 mb-1.5 font-outfit tracking-wider">매월 반복 일자 (1~31)</label>
+                  <input type="number" min="1" max="31" className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-800 text-xs font-bold outline-none shadow-sm bg-white dark:bg-[#131b2e] text-slate-700 dark:text-slate-200" value=${repeatDay} onChange=${(e) => setRepeatDay(Math.min(31, Math.max(1, Number(e.target.value) || 1)))} />
+                </div>
+              </div>
+            `}
+
+            ${editingTransaction && html`<button onClick=${handleDeleteTransactionWrapper} className="w-full p-3 bg-red-50 dark:bg-red-500/10 text-red-500 dark:text-red-400 rounded-xl font-bold text-[11px] hover:bg-red-500 hover:text-white dark:hover:bg-red-500 dark:hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"><i data-lucide="trash-2" className="w-3.5 h-3.5"></i>삭제하기</button>`}
           </div>
+          
           <div className="flex-1 space-y-4 pb-20 sm:pb-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden">
-                <div className="bg-indigo-600 text-white p-2 font-black text-center text-[10px] uppercase">Debit (차변)</div>
-                <div className="p-3 space-y-2 min-h-[120px] sm:min-h-[250px] flex-1">
+              
+              <!-- 차변 입력 패널 -->
+              <div className="bg-white dark:bg-[#131b2e]/85 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden">
+                <div className="bg-indigo-600 text-white p-2.5 font-black text-center text-[10px] uppercase tracking-wider font-outfit border-b border-indigo-600/30">Debit (차변)</div>
+                <div className="p-3.5 space-y-2.5 min-h-[120px] sm:min-h-[250px] flex-1">
                   ${entryRows.debits.map((r, i) => {
                     const account = r.accountId ? getAccountById(r.accountId) : null;
                     const availableTags = [...(account?.tags || [])];
-                    if (r.tag && !availableTags.includes(r.tag)) {
-                      availableTags.push(r.tag);
-                    }
+                    if (r.tag && !availableTags.includes(r.tag)) availableTags.push(r.tag);
                     return html`
                       <div key=${i} className="flex gap-1.5 items-center animate-in slide-in-from-left-2">
-                        <button onClick=${() => setActivePicker({ type: 'debits', index: i })} className="flex-1 min-w-[70px] p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate active:bg-indigo-50">${account ? account.name : '계정 선택'}</button>
+                        <button onClick=${() => setActivePicker({ type: 'debits', index: i })} className="flex-1 min-w-[70px] p-2.5 rounded-lg bg-slate-50 dark:bg-[#1e293b] text-[11px] font-bold border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-200 text-left truncate active:bg-indigo-50/50">${account ? account.name : '계정 선택'}</button>
                         <select 
                           value=${r.tag || ''} 
                           onChange=${(e) => handleUpdateEntryRow('debits', i, 'tag', e.target.value)}
                           disabled=${!r.accountId}
-                          className="w-24 sm:w-28 p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold outline-none text-slate-700 disabled:opacity-50"
+                          className="w-24 sm:w-28 p-2 rounded-lg bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 text-xs font-bold outline-none text-slate-700 dark:text-slate-200 disabled:opacity-40"
                         >
                           <option value="">태그 없음</option>
-                          ${availableTags.map(t => html`
-                            <option key=${t} value=${t}>${t}</option>
-                          `)}
+                          ${availableTags.map(t => html`<option key=${t} value=${t}>${t}</option>`)}
                         </select>
-                        <input type="number" className="w-20 sm:w-24 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-xs outline-none" placeholder="0" value=${r.amount || ''} onChange=${(e) => handleUpdateEntryRow('debits', i, 'amount', Number(e.target.value))} />
-                        <button onClick=${()=>{const n=[...entryRows.debits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, debits:n}));}}} className="text-slate-300 hover:text-red-500 p-1"><${TrashIcon}/></button>
+                        <input type="number" className="w-20 sm:w-24 p-2 rounded-lg bg-white dark:bg-[#131b2e] text-right font-black border border-slate-200 dark:border-slate-800 text-xs outline-none font-mono text-slate-800 dark:text-slate-100" placeholder="0" value=${r.amount || ''} onChange=${(e) => handleUpdateEntryRow('debits', i, 'amount', Number(e.target.value))} />
+                        <button onClick=${()=>{const n=[...entryRows.debits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, debits:n}));}}} className="text-slate-400 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 p-1"><${TrashIcon}/></button>
                       </div>
                     `;
                   })}
-                  <button onClick=${() => setEntryRows(prev => ({...prev, debits: [...prev.debits, {accountId:'', amount:0, tag:''}]}))} className="w-full p-2 mt-1 text-[10px] font-black text-indigo-500 border border-dashed border-indigo-200 rounded-lg hover:bg-indigo-50">+ 행 추가</button>
+                  <button onClick=${() => setEntryRows(prev => ({...prev, debits: [...prev.debits, {accountId:'', amount:0, tag:''}]}))} className="w-full p-2.5 mt-1 text-[10px] font-black text-indigo-500 dark:text-indigo-400 border border-dashed border-indigo-200 dark:border-indigo-800/80 rounded-xl hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 transition-all flex items-center justify-center gap-2">+ 행 추가</button>
                 </div>
-                <div className="bg-slate-50 p-2.5 flex justify-between items-center font-black border-t text-xs sm:text-base">
-                  <span className="text-[9px] uppercase text-slate-400">Total Debit</span>
+                <div className="bg-slate-50 dark:bg-[#0f1524] p-2.5 sm:p-3.5 flex justify-between items-center font-black border-t border-slate-100 dark:border-slate-800 text-xs sm:text-base">
+                  <span className="text-[9px] uppercase text-slate-400 dark:text-slate-300 font-outfit">Total Debit</span>
                   ${totalCreditSum > totalDebitSum && html`
-                    <span className="text-[10px] sm:text-xs text-red-500 font-black px-2 py-0.5 rounded-md bg-red-50 border border-red-100 animate-pulse">
+                    <span className="text-[10px] sm:text-xs text-red-500 font-black px-2 py-0.5 rounded-md bg-red-50/80 dark:bg-red-950/20 border border-red-100/50 dark:border-red-900/30 animate-pulse">
                       ${(totalCreditSum - totalDebitSum).toLocaleString()}원 부족
                     </span>
                   `}
-                  <span className="font-mono text-indigo-600 font-black">${totalDebitSum.toLocaleString()}원</span>
+                  <span className="font-mono text-indigo-600 dark:text-indigo-400 font-black">${totalDebitSum.toLocaleString()}원</span>
                 </div>
               </div>
-              <div className="bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden">
-                <div className="bg-red-500 text-white p-2 font-black text-center text-[10px] uppercase">Credit (대변)</div>
-                <div className="p-3 space-y-2 min-h-[120px] sm:min-h-[250px] flex-1">
+
+              <!-- 대변 입력 패널 -->
+              <div className="bg-white dark:bg-[#131b2e]/85 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden">
+                <div className="bg-red-500 text-white p-2.5 font-black text-center text-[10px] uppercase tracking-wider font-outfit border-b border-red-400/30">Credit (대변)</div>
+                <div className="p-3.5 space-y-2.5 min-h-[120px] sm:min-h-[250px] flex-1">
                   ${entryRows.credits.map((r, i) => {
                     const account = r.accountId ? getAccountById(r.accountId) : null;
                     const availableTags = [...(account?.tags || [])];
-                    if (r.tag && !availableTags.includes(r.tag)) {
-                      availableTags.push(r.tag);
-                    }
+                    if (r.tag && !availableTags.includes(r.tag)) availableTags.push(r.tag);
                     return html`
                       <div key=${i} className="flex gap-1.5 items-center animate-in slide-in-from-right-2">
-                        <button onClick=${() => setActivePicker({ type: 'credits', index: i })} className="flex-1 min-w-[70px] p-2.5 rounded-lg bg-slate-50 text-[11px] font-bold border border-slate-100 text-left truncate active:bg-red-50">${account ? account.name : '계정 선택'}</button>
+                        <button onClick=${() => setActivePicker({ type: 'credits', index: i })} className="flex-1 min-w-[70px] p-2.5 rounded-lg bg-slate-50 dark:bg-[#1e293b] text-[11px] font-bold border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-200 text-left truncate active:bg-red-50/50">${account ? account.name : '계정 선택'}</button>
                         <select 
                           value=${r.tag || ''} 
                           onChange=${(e) => handleUpdateEntryRow('credits', i, 'tag', e.target.value)}
                           disabled=${!r.accountId}
-                          className="w-24 sm:w-28 p-2 rounded-lg bg-white border border-slate-200 text-xs font-bold outline-none text-slate-700 disabled:opacity-50"
+                          className="w-24 sm:w-28 p-2 rounded-lg bg-white dark:bg-[#131b2e] border border-slate-200 dark:border-slate-800 text-xs font-bold outline-none text-slate-700 dark:text-slate-200 disabled:opacity-40"
                         >
                           <option value="">태그 없음</option>
-                          ${availableTags.map(t => html`
-                            <option key=${t} value=${t}>${t}</option>
-                          `)}
+                          ${availableTags.map(t => html`<option key=${t} value=${t}>${t}</option>`)}
                         </select>
-                        <input type="number" className="w-20 sm:w-24 p-2 rounded-lg bg-white text-right font-black border border-slate-200 text-xs outline-none" placeholder="0" value=${r.amount || ''} onChange=${(e) => handleUpdateEntryRow('credits', i, 'amount', Number(e.target.value))} />
-                        <button onClick=${()=>{const n=[...entryRows.credits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, credits:n}));}}} className="text-slate-300 hover:text-red-500 p-1"><${TrashIcon}/></button>
+                        <input type="number" className="w-20 sm:w-24 p-2 rounded-lg bg-white dark:bg-[#131b2e] text-right font-black border border-slate-200 dark:border-slate-800 text-xs outline-none font-mono text-slate-800 dark:text-slate-100" placeholder="0" value=${r.amount || ''} onChange=${(e) => handleUpdateEntryRow('credits', i, 'amount', Number(e.target.value))} />
+                        <button onClick=${()=>{const n=[...entryRows.credits]; if(n.length>1){n.splice(i,1); setEntryRows(prev => ({...prev, credits:n}));}}} className="text-slate-400 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 p-1"><${TrashIcon}/></button>
                       </div>
                     `;
                   })}
-                  <button onClick=${() => setEntryRows(prev => ({...prev, credits: [...prev.credits, {accountId:'', amount:0, tag:''}]}))} className="w-full p-2 mt-1 text-[10px] font-black text-red-500 border border-dashed border-red-200 rounded-lg hover:bg-red-50">+ 행 추가</button>
+                  <button onClick=${() => setEntryRows(prev => ({...prev, credits: [...prev.credits, {accountId:'', amount:0, tag:''}]}))} className="w-full p-2.5 mt-1 text-[10px] font-black text-red-500 dark:text-red-400 border border-dashed border-red-200 dark:border-slate-800/80 rounded-xl hover:bg-red-50/40 dark:hover:bg-red-950/20 transition-all flex items-center justify-center gap-2">+ 행 추가</button>
                 </div>
-                <div className="bg-slate-50 p-2.5 flex justify-between items-center font-black border-t text-xs sm:text-base">
-                  <span className="text-[9px] uppercase text-slate-400">Total Credit</span>
+                <div className="bg-slate-50 dark:bg-[#0f1524] p-2.5 sm:p-3.5 flex justify-between items-center font-black border-t border-slate-100 dark:border-slate-800 text-xs sm:text-base">
+                  <span className="text-[9px] uppercase text-slate-400 dark:text-slate-300 font-outfit">Total Credit</span>
                   ${totalDebitSum > totalCreditSum && html`
-                    <span className="text-[10px] sm:text-xs text-red-500 font-black px-2 py-0.5 rounded-md bg-red-50 border border-red-100 animate-pulse">
+                    <span className="text-[10px] sm:text-xs text-red-500 font-black px-2 py-0.5 rounded-md bg-red-50/80 dark:bg-red-950/20 border border-red-100/50 dark:border-red-900/30 animate-pulse">
                       ${(totalDebitSum - totalCreditSum).toLocaleString()}원 부족
                     </span>
                   `}
-                  <span className="font-mono text-red-500 font-black">${totalCreditSum.toLocaleString()}원</span>
+                  <span className="font-mono text-red-500 dark:text-rose-400 font-black">${totalCreditSum.toLocaleString()}원</span>
                 </div>
               </div>
             </div>
-            <div className="bg-slate-50 p-3 sm:p-4 rounded-2xl border flex flex-col gap-3 shadow-inner">
-              <input type="text" className="w-full bg-white p-2.5 rounded-xl border border-slate-200 outline-none font-bold placeholder:text-slate-300 text-slate-700 text-xs sm:text-base" placeholder="거래 메모를 입력하세요 (예: 식비 결제)" value=${entryRows.memo} onChange=${(e) => setEntryRows({...entryRows, memo: e.target.value})} />
+            
+            <!-- 메모 입력 및 전송 영역 -->
+            <div className="bg-slate-50 dark:bg-[#1e293b]/60 p-3 sm:p-4.5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 flex flex-col gap-3 shadow-inner">
+              <input type="text" className="w-full bg-white dark:bg-[#131b2e] p-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none font-bold placeholder:text-slate-300 dark:placeholder:text-slate-500 text-slate-800 dark:text-slate-100 text-xs sm:text-base focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-950" placeholder="거래 메모를 입력하세요 (예: 마트 식재료 지출)" value=${entryRows.memo} onChange=${(e) => setEntryRows({...entryRows, memo: e.target.value})} />
               <div className="flex items-center justify-between gap-4">
-                <span className=${`px-4 py-2 rounded-full text-[10px] font-black uppercase shadow-sm ${totalDebitSum === totalCreditSum && totalDebitSum > 0 ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                <span className=${`px-4 py-2.5 rounded-full text-[10px] font-black uppercase shadow-sm ${totalDebitSum === totalCreditSum && totalDebitSum > 0 ? 'bg-emerald-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
                   ${totalDebitSum === totalCreditSum && totalDebitSum > 0 
-                    ? '차대일치' 
-                    : `불일치 (${Math.abs(totalDebitSum - totalCreditSum).toLocaleString()}원 부족)`}
+                    ? '차대일치 (Balanced)' 
+                    : `차대불일치 (${Math.abs(totalDebitSum - totalCreditSum).toLocaleString()}원 차이)`}
                 </span>
-                <button onClick=${handleSaveEntry} disabled=${isSavingEntry || totalDebitSum !== totalCreditSum || totalDebitSum === 0} className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white px-6 py-3 rounded-xl font-black shadow-lg transition-all active:scale-95 text-xs sm:text-sm whitespace-nowrap">
+                <button onClick=${handleSaveEntry} disabled=${isSavingEntry || totalDebitSum !== totalCreditSum || totalDebitSum === 0} className="flex-1 bg-gradient-to-r from-indigo-500 to-violet-600 disabled:from-slate-300 disabled:to-slate-300 dark:disabled:from-slate-800 dark:disabled:to-slate-800 text-white disabled:text-slate-500 dark:disabled:text-slate-500 px-6 py-3.5 rounded-xl font-black shadow-lg hover:shadow-indigo-500/20 transition-all active:scale-95 text-xs sm:text-sm whitespace-nowrap">
                   ${isSavingEntry ? html`
                     <span className="flex items-center justify-center gap-2">
                       <i data-lucide="loader-2" className="w-4 h-4 animate-spin"></i> 저장 중...
@@ -2146,6 +2385,7 @@ const App = () => {
         </div>
       <//>
 
+      <!-- 계정과목 하위 피커 모달 -->
       <${Modal} isOpen=${activePicker !== null} onClose=${() => setActivePicker(null)} title="계정과목 선택" maxWidth="max-w-4xl" zIndex="z-[150]">
         <${AccountGridPicker} accounts=${accounts} onPick=${handleAccountPick} />
       <//>
