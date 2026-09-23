@@ -59,6 +59,89 @@
   .modal-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
   .sidebar-transition { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
   button, input, select { touch-action: manipulation; }
+
+  @media print {
+    @page {
+      size: A4 landscape;
+      margin: 12mm;
+    }
+    html, body {
+      width: 100% !important;
+      height: auto !important;
+      min-height: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: white !important;
+      color: #0f172a !important;
+      overflow: visible !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .no-print, aside, header, nav, button, input, select, .loading-overlay, #debug-error-box {
+      display: none !important;
+    }
+    body.print-modal-active main,
+    body:has(.print-modal-container) main,
+    body.print-modal-active aside,
+    body:has(.print-modal-container) aside,
+    body.print-modal-active #root > div > *:not(.print-modal-container),
+    body:has(.print-modal-container) #root > div > *:not(.print-modal-container) {
+      display: none !important;
+    }
+    #root, #root > div, .print-modal-container, .print-modal-inner, .print-paper-wrapper {
+      position: static !important;
+      inset: auto !important;
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      height: auto !important;
+      max-height: none !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      overflow: visible !important;
+    }
+    .print-report-paper {
+      position: static !important;
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      background: white !important;
+      box-sizing: border-box !important;
+    }
+    table {
+      page-break-inside: auto;
+      width: 100% !important;
+      border-collapse: collapse !important;
+      table-layout: fixed !important;
+    }
+    tr {
+      page-break-inside: avoid !important;
+      page-break-after: auto !important;
+    }
+    thead {
+      display: table-header-group !important;
+    }
+    tfoot {
+      display: table-footer-group !important;
+    }
+    th, td {
+      word-break: break-all !important;
+      overflow-wrap: break-word !important;
+    }
+  }
+  @media screen {
+    .print-only { display: none; }
+  }
 </style>
 </head>
 <body class="bg-slate-50 text-slate-900 overflow-x-hidden font-sans">
@@ -111,9 +194,25 @@ const Card = ({ children, className = '' }) => html`
   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden ${className}">${children}</div>
 `;
 
-const MoneyText = ({ amount, className = '', colorClass = 'text-slate-800' }) => html`
-  <span className="font-mono font-black ${colorClass} ${className}">${Number(amount || 0).toLocaleString()}원</span>
-`;
+const formatMoney = (amount, options = {}) => {
+  const num = Number(amount || 0);
+  if (num < 0) {
+    return `(${Math.abs(num).toLocaleString()})원`;
+  }
+  return `${num.toLocaleString()}원`;
+};
+
+const MoneyText = ({ amount, className = '', colorClass = '' }) => {
+  const num = Number(amount || 0);
+  const isNeg = num < 0;
+  const defaultColor = isNeg ? 'text-rose-600' : 'text-slate-800';
+  const finalColor = colorClass || defaultColor;
+  return html`
+    <span className="font-mono font-black ${finalColor} ${className}">
+      ${isNeg ? `(${Math.abs(num).toLocaleString()})` : num.toLocaleString()}원
+    </span>
+  `;
+};
 
 const Modal = ({ isOpen, onClose, title, children, maxWidth = "max-w-md", zIndex = "z-50" }) => {
   if (!isOpen) return null;
@@ -226,7 +325,7 @@ const useAccounting = () => {
         const mockRes = {
           initialSetup: {
             debits: [{ accountId: 'a1', amount: 5000000, tag: '이체' }, { accountId: 'a2', amount: 500000, tag: '비상금' }],
-            credits: [{ accountId: 'e1', amount: 5500000, tag: '' }]
+            credits: [{ accountId: 'e1', amount: 3100000, tag: '' }, { accountId: 'l3', amount: 2400000, tag: '할부' }]
           },
           accounts: {
             assets: [
@@ -235,6 +334,8 @@ const useAccounting = () => {
             ],
             liabilities: [
               { id: 'l1', name: '신용카드', subtype: 'variable', tags: ['일시불', '할부'] },
+              { id: 'l2', name: '충당부채', subtype: 'variable', tags: ['대손', '환불'] },
+              { id: 'l3', name: '장기할부카드대금', subtype: 'fixed', tags: ['가전', '할부'] },
               { id: 'e1', name: '이익잉여금', subtype: 'fixed', tags: [] }
             ],
             revenue: [
@@ -249,6 +350,14 @@ const useAccounting = () => {
             ]
           },
           transactions: [
+            {
+              id: 'tx-neg-1',
+              date: `${currentMonth}-01`,
+              debits: [{ accountId: 'l2', amount: 100, tag: '대손' }],
+              credits: [{ accountId: 'a1', amount: 100, tag: '이체' }],
+              vendor: '자체회계',
+              memo: '충당부채 설정 (차변 100원 - 음수잔액 테스트)'
+            },
             {
               id: 'tx-1',
               date: `${currentMonth}-01`,
@@ -1239,6 +1348,903 @@ const MonthlyBudgetReport = ({ accounts, transactions, budgets = {}, saveBudget 
     </div>`;
 };
 
+// --- 거래내역 보고서 인쇄 모달 (감사 및 가족 정보공시용) ---
+const PrintReportModal = ({ isOpen, onClose, transactions, accounts, getAccountById, dateRange, searchTerm }) => {
+  if (!isOpen) return null;
+
+  useEffect(() => {
+    if (window.lucide) window.lucide.createIcons();
+  });
+
+  useEffect(() => {
+    document.body.classList.add('print-modal-active');
+    return () => {
+      document.body.classList.remove('print-modal-active');
+    };
+  }, []);
+
+  const filteredTxs = useMemo(() => {
+    return transactions.filter(t => {
+      const matchStart = !dateRange.start || t.date >= dateRange.start;
+      const matchEnd = !dateRange.end || t.date <= dateRange.end;
+      if (!matchStart || !matchEnd) return false;
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      const vMatch = (t.vendor || '').toLowerCase().includes(term);
+      const mMatch = (t.memo || '').toLowerCase().includes(term);
+      const dMatch = t.debits.some(d => (getAccountById(d.accountId)?.name || '').toLowerCase().includes(term));
+      const cMatch = t.credits.some(c => (getAccountById(c.accountId)?.name || '').toLowerCase().includes(term));
+      return vMatch || mMatch || dMatch || cMatch;
+    }).sort((a, b) => a.date.localeCompare(b.date));
+  }, [transactions, dateRange, searchTerm, getAccountById]);
+
+  const totalDebits = useMemo(() => {
+    return filteredTxs.reduce((sum, t) => sum + (t.debits || []).reduce((s, d) => s + Number(d.amount || 0), 0), 0);
+  }, [filteredTxs]);
+
+  const totalCredits = useMemo(() => {
+    return filteredTxs.reduce((sum, t) => sum + (t.credits || []).reduce((s, c) => s + Number(c.amount || 0), 0), 0);
+  }, [filteredTxs]);
+
+  const isBalanced = totalDebits === totalCredits;
+
+  const nowStr = useMemo(() => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }, []);
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return html`
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4 print-modal-container">
+      <div className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl flex flex-col max-h-[95vh] border border-slate-200 print-modal-inner">
+        <div className="flex items-center justify-between p-4 border-b bg-slate-50 shrink-0 no-print">
+          <div className="flex items-center gap-2">
+            <i data-lucide="printer" className="w-5 h-5 text-indigo-600"></i>
+            <h3 className="text-base font-bold text-slate-800">총계정원장 거래내역 보고서 출력</h3>
+            <span className="text-xs bg-indigo-100 text-indigo-700 font-bold px-2.5 py-0.5 rounded-full ml-2">
+              총 ${filteredTxs.length}건
+            </span>
+            ${isBalanced ? html`
+              <span className="text-xs bg-emerald-100 text-emerald-700 font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                ✓ 대차일치 (정상)
+              </span>
+            ` : html`
+              <span className="text-xs bg-rose-100 text-rose-700 font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                ⚠ 대차차액 ${Math.abs(totalDebits - totalCredits).toLocaleString()}원
+              </span>
+            `}
+          </div>
+          <div className="flex items-center gap-2">
+            <${Button} variant="primary" onClick=${handlePrint} className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2">
+              <i data-lucide="printer" className="w-4 h-4"></i>
+              <span>인쇄하기 (Ctrl+P)</span>
+            <//>
+            <button onClick=${onClose} className="p-2 hover:bg-slate-200 rounded-xl transition-colors text-slate-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto modal-scroll p-4 sm:p-8 bg-slate-100/60 print-paper-wrapper">
+          <div className="bg-white p-6 sm:p-10 rounded-xl shadow border border-slate-200 print-report-paper text-slate-900 max-w-4xl mx-auto">
+            <div className="border-b-2 border-slate-900 pb-4 mb-6">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">총계정원장 거래내역 보고서</h1>
+                <p className="text-xs text-slate-500 font-medium mt-1">General Ledger Journal & Transaction Report</p>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs">
+                <div><span className="text-slate-400 font-bold">조회 기간:</span> <span className="font-semibold">${dateRange.start || '처음'} ~ ${dateRange.end || '현재'}</span></div>
+                <div><span className="text-slate-400 font-bold">출력 일시:</span> <span className="font-semibold">${nowStr}</span></div>
+                <div><span className="text-slate-400 font-bold">총 거래건수:</span> <span className="font-semibold">${filteredTxs.length}건</span></div>
+                <div><span className="text-slate-400 font-bold">대차 균형:</span> <span className=${`font-black ${isBalanced ? 'text-emerald-700' : 'text-rose-600'}`}>${isBalanced ? '대차일치 (정상)' : '불일치'}</span></div>
+              </div>
+            </div>
+
+            <table className="w-full text-left border-collapse text-xs table-fixed">
+              <thead>
+                <tr className="border-y-2 border-slate-800 bg-slate-100 text-slate-700 font-black text-[11px]">
+                  <th className="py-2.5 px-2 w-[5%] text-center">No.</th>
+                  <th className="py-2.5 px-2 w-[12%]">거래일자</th>
+                  <th className="py-2.5 px-2 w-[14%]">거래처</th>
+                  <th className="py-2.5 px-2 w-[25%]">적요 / 메모</th>
+                  <th className="py-2.5 px-2 w-[17%]">차변 (Debit)</th>
+                  <th className="py-2.5 px-2 w-[17%]">대변 (Credit)</th>
+                  <th className="py-2.5 px-2 w-[10%] text-right">금액</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                ${filteredTxs.length === 0 ? html`
+                  <tr>
+                    <td colSpan="7" className="py-12 text-center text-slate-400">조회된 거래 내역이 없습니다.</td>
+                  </tr>
+                ` : filteredTxs.map((t, idx) => {
+                  const txSum = t.debits.reduce((s, d) => s + Number(d.amount || 0), 0);
+                  return html`
+                    <tr key=${t.id} className="hover:bg-slate-50/50">
+                      <td className="py-2 px-2 text-center text-slate-400 font-mono text-[10px]">${idx + 1}</td>
+                      <td className="py-2 px-2 font-mono whitespace-nowrap text-slate-600">${t.date}</td>
+                      <td className="py-2 px-2 font-medium text-slate-800">${t.vendor || '-'}</td>
+                      <td className="py-2 px-2 text-slate-700">${t.memo || '-'}</td>
+                      <td className="py-2 px-2">
+                        <div className="space-y-0.5">
+                          ${t.debits.map((d, i) => html`
+                            <div key=${i} className="flex justify-between items-center text-[11px]">
+                              <span className="text-indigo-700 font-medium">${getAccountById(d.accountId)?.name || d.accountId}${d.tag ? ` (${d.tag})` : ''}</span>
+                              <span className="font-mono text-slate-600">${Number(d.amount || 0).toLocaleString()}원</span>
+                            </div>
+                          `)}
+                        </div>
+                      </td>
+                      <td className="py-2 px-2">
+                        <div className="space-y-0.5">
+                          ${t.credits.map((c, i) => html`
+                            <div key=${i} className="flex justify-between items-center text-[11px]">
+                              <span className="text-rose-700 font-medium">${getAccountById(c.accountId)?.name || c.accountId}${c.tag ? ` (${c.tag})` : ''}</span>
+                              <span className="font-mono text-slate-600">${Number(c.amount || 0).toLocaleString()}원</span>
+                            </div>
+                          `)}
+                        </div>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono font-bold text-slate-900 whitespace-nowrap">
+                        ${txSum.toLocaleString()}원
+                      </td>
+                    </tr>
+                  `;
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-slate-900 bg-slate-100 font-black text-xs">
+                  <td colSpan="4" className="py-3 px-3 text-right text-slate-700">총 합계 (Total):</td>
+                  <td className="py-3 px-2 font-mono text-indigo-700 whitespace-nowrap">
+                    ${totalDebits.toLocaleString()}원
+                  </td>
+                  <td className="py-3 px-2 font-mono text-rose-700 whitespace-nowrap">
+                    ${totalCredits.toLocaleString()}원
+                  </td>
+                  <td className="py-3 px-2 text-right font-mono text-slate-900 whitespace-nowrap">
+                    ${totalDebits.toLocaleString()}원
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <div className="mt-8 pt-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400">
+              <span>* 본 문서는 DoubleBook 복식부기 가계부 시스템에서 추출된 정규 거래내역 보고서입니다.</span>
+              <span>페이지 1 / 1</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+// --- 미래 시나리오 기능 컴포넌트 ---
+const ScenarioView = ({ accounts, transactions, accountBalances, flatAccounts, getAccountById, totalAssets, totalLiabilitiesOnly }) => {
+  const [activeSubTab, setActiveSubTab] = useState('repayment'); // 'repayment' | 'networth'
+
+  useEffect(() => {
+    if (window.lucide) window.lucide.createIcons();
+  });
+
+  // ---- 1. 상환/적립 스케줄러 상태 ----
+  const allAccountsForSim = useMemo(() => {
+    return [
+      ...accounts.liabilities.filter(a => a.name !== '이익잉여금').map(a => ({ ...a, category: 'liabilities' })),
+      ...accounts.assets.map(a => ({ ...a, category: 'assets' }))
+    ];
+  }, [accounts]);
+
+  const [selectedAccId, setSelectedAccId] = useState(() => {
+    const lAcc = accounts.liabilities.find(a => a.name.includes('할부') || a.name.includes('카드') || a.name !== '이익잉여금');
+    return lAcc ? lAcc.id : (accounts.assets[0]?.id || '');
+  });
+
+  const selectedAccount = useMemo(() => {
+    return allAccountsForSim.find(a => String(a.id) === String(selectedAccId)) || allAccountsForSim[0];
+  }, [allAccountsForSim, selectedAccId]);
+
+  const currentAccBalance = useMemo(() => {
+    if (!selectedAccount) return 0;
+    const raw = accountBalances[selectedAccount.id] || 0;
+    return selectedAccount.category === 'liabilities' ? -raw : raw;
+  }, [selectedAccount, accountBalances]);
+
+  const [calcMode, setCalcMode] = useState('byAmount'); // 'byAmount' | 'byMonths'
+  const [inputMonthlyAmount, setInputMonthlyAmount] = useState(200000);
+  const [inputTargetMonths, setInputTargetMonths] = useState(12);
+  const [annualInterestRate, setAnnualInterestRate] = useState(0);
+  const [startMonth, setStartMonth] = useState(() => new Date().toISOString().slice(0, 7));
+
+  const repaymentSchedule = useMemo(() => {
+    const principal = Math.abs(currentAccBalance);
+    if (principal <= 0) return { schedule: [], totalMonths: 0, totalPaid: 0, totalInterest: 0, monthlyPay: 0, endYearMonth: startMonth };
+
+    const monthlyRate = (annualInterestRate / 100) / 12;
+    let monthlyPay = 0;
+    let months = 0;
+
+    if (calcMode === 'byAmount') {
+      monthlyPay = Math.max(1000, Number(inputMonthlyAmount || 0));
+    } else {
+      months = Math.max(1, Number(inputTargetMonths || 1));
+      if (monthlyRate > 0) {
+        monthlyPay = Math.round(principal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1));
+      } else {
+        monthlyPay = Math.ceil(principal / months);
+      }
+    }
+
+    const schedule = [];
+    let remPrincipal = principal;
+    const [sYear, sMonth] = startMonth.split('-').map(Number);
+    let curDate = new Date(sYear, sMonth - 1, 1);
+    let totalInterest = 0;
+    let totalPaid = 0;
+    let maxIter = 360;
+
+    while (remPrincipal > 0 && maxIter > 0) {
+      maxIter--;
+      const ym = `${curDate.getFullYear()}-${String(curDate.getMonth() + 1).padStart(2, '0')}`;
+      const interest = monthlyRate > 0 ? Math.round(remPrincipal * monthlyRate) : 0;
+      let pay = monthlyPay;
+      if (remPrincipal + interest < pay) {
+        pay = remPrincipal + interest;
+      }
+      const payPrincipal = pay - interest;
+      remPrincipal = Math.max(0, remPrincipal - payPrincipal);
+      totalInterest += interest;
+      totalPaid += pay;
+
+      schedule.push({
+        round: schedule.length + 1,
+        yearMonth: ym,
+        pay,
+        payPrincipal,
+        interest,
+        remPrincipal
+      });
+
+      curDate.setMonth(curDate.getMonth() + 1);
+    }
+
+    const endYearMonth = schedule.length > 0 ? schedule[schedule.length - 1].yearMonth : startMonth;
+
+    return {
+      schedule,
+      totalMonths: schedule.length,
+      totalPaid,
+      totalInterest,
+      monthlyPay,
+      endYearMonth
+    };
+  }, [currentAccBalance, calcMode, inputMonthlyAmount, inputTargetMonths, annualInterestRate, startMonth]);
+
+  // ---- 2. 종합 순자산 & 미래 재정 예측 상태 ----
+  const currentNetWorth = totalAssets - totalLiabilitiesOnly;
+
+  const recentAverages = useMemo(() => {
+    const today = new Date();
+    const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 3, 1).toISOString().slice(0, 10);
+    const recentTxs = transactions.filter(t => t.date >= threeMonthsAgo);
+
+    let revSum = 0;
+    let expSum = 0;
+
+    recentTxs.forEach(t => {
+      t.credits.forEach(c => {
+        if (accounts.revenue.some(a => String(a.id) === String(c.accountId))) revSum += Number(c.amount || 0);
+      });
+      t.debits.forEach(d => {
+        if (accounts.revenue.some(a => String(a.id) === String(d.accountId))) revSum -= Number(d.amount || 0);
+        if (accounts.expenses.some(a => String(a.id) === String(d.accountId))) expSum += Number(d.amount || 0);
+      });
+      t.credits.forEach(c => {
+        if (accounts.expenses.some(a => String(a.id) === String(c.accountId))) expSum -= Number(c.amount || 0);
+      });
+    });
+
+    const monthsCount = Math.max(1, Math.min(3, new Set(recentTxs.map(t => t.date.slice(0, 7))).size || 1));
+    const avgRev = Math.round(revSum / monthsCount);
+    const avgExp = Math.round(expSum / monthsCount);
+
+    return {
+      avgRevenue: avgRev > 0 ? avgRev : 3000000,
+      avgExpense: avgExp > 0 ? avgExp : 1800000
+    };
+  }, [transactions, accounts]);
+
+  const [simMonthlyRevenue, setSimMonthlyRevenue] = useState(recentAverages.avgRevenue);
+  const [simMonthlyExpense, setSimMonthlyExpense] = useState(recentAverages.avgExpense);
+  const [simMonths, setSimMonths] = useState(12);
+  const [simAssetReturnRate, setSimAssetReturnRate] = useState(0);
+
+  const monthlySurplus = Number(simMonthlyRevenue || 0) - Number(simMonthlyExpense || 0);
+
+  const netWorthProjection = useMemo(() => {
+    const monthlyRate = (Number(simAssetReturnRate || 0) / 100) / 12;
+    let curNet = currentNetWorth;
+    const timeline = [];
+    const today = new Date();
+    let milestone50M = null;
+    let milestone100M = null;
+    let milestone300M = null;
+    let milestone500M = null;
+
+    for (let m = 1; m <= Number(simMonths || 12); m++) {
+      const d = new Date(today.getFullYear(), today.getMonth() + m, 1);
+      const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const growth = monthlyRate > 0 && curNet > 0 ? Math.round(curNet * monthlyRate) : 0;
+      curNet += monthlySurplus + growth;
+
+      timeline.push({
+        monthIndex: m,
+        yearMonth: ym,
+        netWorth: curNet,
+        monthlySurplus,
+        growth
+      });
+
+      if (!milestone50M && curNet >= 50000000) milestone50M = { month: ym, index: m };
+      if (!milestone100M && curNet >= 100000000) milestone100M = { month: ym, index: m };
+      if (!milestone300M && curNet >= 300000000) milestone300M = { month: ym, index: m };
+      if (!milestone500M && curNet >= 500000000) milestone500M = { month: ym, index: m };
+    }
+
+    const finalNetWorth = timeline.length > 0 ? timeline[timeline.length - 1].netWorth : currentNetWorth;
+    const diff = finalNetWorth - currentNetWorth;
+    const pct = currentNetWorth > 0 ? ((diff / currentNetWorth) * 100).toFixed(1) : 0;
+
+    return {
+      timeline,
+      finalNetWorth,
+      diff,
+      pct,
+      milestones: { milestone50M, milestone100M, milestone300M, milestone500M }
+    };
+  }, [currentNetWorth, monthlySurplus, simMonths, simAssetReturnRate]);
+
+  const compareScenarios = useMemo(() => {
+    const m = Number(simMonths || 12);
+    const baseFinal = currentNetWorth + (monthlySurplus * m);
+    const cutExpSurplus = Number(simMonthlyRevenue || 0) - (Number(simMonthlyExpense || 0) * 0.85);
+    const cutExpFinal = currentNetWorth + (cutExpSurplus * m);
+    const boostRevSurplus = (Number(simMonthlyRevenue || 0) * 1.1) - Number(simMonthlyExpense || 0);
+    const boostRevFinal = currentNetWorth + (boostRevSurplus * m);
+
+    return {
+      base: { label: '기본 계획 (현재 유지)', final: baseFinal, surplus: monthlySurplus },
+      cutExp: { label: '지출 15% 절약 시', final: cutExpFinal, surplus: cutExpSurplus, diff: cutExpFinal - baseFinal },
+      boostRev: { label: '수익 10% 증대 시', final: boostRevFinal, surplus: boostRevSurplus, diff: boostRevFinal - baseFinal }
+    };
+  }, [currentNetWorth, simMonthlyRevenue, simMonthlyExpense, simMonths, monthlySurplus]);
+
+  return html`
+    <div className="max-w-6xl mx-auto space-y-6 pb-16 text-slate-800">
+      <!-- 시나리오 상단 탭 헤더 -->
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="p-2 bg-indigo-50 text-indigo-600 rounded-xl font-black">
+              <i data-lucide="sparkles" className="w-5 h-5"></i>
+            </span>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">미래 재정 시뮬레이션</h2>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+            계정과목별 상환 스케줄 예측 및 미래 목표 순자산 도출을 위한 시뮬레이터입니다.
+          </p>
+        </div>
+
+        <div className="flex p-1 bg-slate-100 rounded-2xl border border-slate-200 self-start sm:self-auto">
+          <button
+            onClick=${() => setActiveSubTab('repayment')}
+            className=${`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${activeSubTab === 'repayment' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+          >
+            <i data-lucide="credit-card" className="w-4 h-4"></i>
+            <span>상환 / 적립 스케줄러</span>
+          </button>
+          <button
+            onClick=${() => setActiveSubTab('networth')}
+            className=${`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${activeSubTab === 'networth' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+          >
+            <i data-lucide="trending-up" className="w-4 h-4"></i>
+            <span>종합 순자산 예측</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 서브탭 1: 상환 / 적립 스케줄러 -->
+      ${activeSubTab === 'repayment' && html`
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 왼쪽: 시뮬레이션 설정 카드 -->
+            <div className="lg:col-span-1 bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5 h-fit">
+              <h3 className="text-base font-black text-slate-800 flex items-center gap-2 border-b pb-3">
+                <i data-lucide="sliders" className="w-4 h-4 text-indigo-600"></i>
+                <span>스케줄 조건 설정</span>
+              </h3>
+
+              <!-- 계정과목 선택 -->
+              <div>
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">대상 계정과목 선택</label>
+                <select
+                  value=${selectedAccId}
+                  onChange=${(e) => setSelectedAccId(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                >
+                  <optgroup label="부채 (상환 대상)">
+                    ${accounts.liabilities.filter(a => a.name !== '이익잉여금').map(a => html`
+                      <option key=${a.id} value=${a.id}>${a.name} (현재 잔액: ${(-(accountBalances[a.id] || 0)).toLocaleString()}원)</option>
+                    `)}
+                  </optgroup>
+                  <optgroup label="자산 (적립 대상)">
+                    ${accounts.assets.map(a => html`
+                      <option key=${a.id} value=${a.id}>${a.name} (현재 잔액: ${(accountBalances[a.id] || 0).toLocaleString()}원)</option>
+                    `)}
+                  </optgroup>
+                </select>
+              </div>
+
+              <!-- 현재 잔액 상태 카드 -->
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-1">
+                <div className="flex justify-between items-center text-xs text-slate-500 font-bold">
+                  <span>${selectedAccount?.name} 잔액</span>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full ${selectedAccount?.category === 'liabilities' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}">
+                    ${selectedAccount?.category === 'liabilities' ? '부채 계정' : '자산 계정'}
+                  </span>
+                </div>
+                <div className="text-xl sm:text-2xl font-black font-mono ${currentAccBalance < 0 ? 'text-rose-600' : 'text-slate-900'}">
+                  ${currentAccBalance < 0 ? `(${Math.abs(currentAccBalance).toLocaleString()})` : currentAccBalance.toLocaleString()}원
+                </div>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  ${selectedAccount?.category === 'liabilities' ? '* 완제 상환 목표 원금으로 자동 반영됩니다.' : '* 적립 시뮬레이션 기준 원금으로 사용됩니다.'}
+                </p>
+              </div>
+
+              <!-- 계산 모드 토글 -->
+              <div>
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">도출 방식 선택</label>
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+                  <button
+                    onClick=${() => setCalcMode('byAmount')}
+                    className=${`py-2 text-xs font-bold rounded-lg transition-all ${calcMode === 'byAmount' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
+                  >
+                    월 상환액 입력
+                  </button>
+                  <button
+                    onClick=${() => setCalcMode('byMonths')}
+                    className=${`py-2 text-xs font-bold rounded-lg transition-all ${calcMode === 'byMonths' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
+                  >
+                    목표 기간(개월) 입력
+                  </button>
+                </div>
+              </div>
+
+              <!-- 모드별 인풋 -->
+              ${calcMode === 'byAmount' ? html`
+                <div>
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">매월 상환/납입액 (원)</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value=${inputMonthlyAmount || ''}
+                      onChange=${(e) => setInputMonthlyAmount(Number(e.target.value))}
+                      step="10000"
+                      className="w-full p-3 pr-8 rounded-xl bg-slate-50 border border-slate-200 text-sm font-black font-mono text-indigo-600 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">원</span>
+                  </div>
+                  <div className="flex gap-1.5 mt-2">
+                    ${[100000, 200000, 300000, 500000].map(amt => html`
+                      <button
+                        key=${amt}
+                        onClick=${() => setInputMonthlyAmount(amt)}
+                        className="text-[10px] bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 px-2 py-1 rounded-lg font-bold text-slate-500 transition-colors"
+                      >
+                        ${amt / 10000}만
+                      </button>
+                    `)}
+                  </div>
+                </div>
+              ` : html`
+                <div>
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">목표 상환 완료 기간</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value=${inputTargetMonths || ''}
+                      onChange=${(e) => setInputTargetMonths(Number(e.target.value))}
+                      className="w-full p-3 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-sm font-black font-mono text-indigo-600 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">개월</span>
+                  </div>
+                  <div className="flex gap-1.5 mt-2">
+                    ${[3, 6, 12, 24, 36].map(m => html`
+                      <button
+                        key=${m}
+                        onClick=${() => setInputTargetMonths(m)}
+                        className="text-[10px] bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 px-2.5 py-1 rounded-lg font-bold text-slate-500 transition-colors"
+                      >
+                        ${m}개월
+                      </button>
+                    `)}
+                  </div>
+                </div>
+              `}
+
+              <!-- 연 이자율 및 시작월 -->
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">상환 시작월</label>
+                  <input
+                    type="month"
+                    value=${startMonth}
+                    onChange=${(e) => setStartMonth(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">연 이자율 (%)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="0 (무이자)"
+                    value=${annualInterestRate || ''}
+                    onChange=${(e) => setAnnualInterestRate(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- 오른쪽: 도출 결과 카드 & 스케줄 타임라인 표 -->
+            <div className="lg:col-span-2 space-y-6">
+              <!-- 결과 요약 박스 (3단 카드) -->
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 p-5 rounded-3xl text-white shadow-md">
+                  <div className="flex items-center justify-between text-indigo-100 text-xs font-bold mb-2">
+                    <span>완제 예정 시점</span>
+                    <i data-lucide="calendar-check" className="w-4 h-4"></i>
+                  </div>
+                  <div className="text-2xl font-black tracking-tight font-mono">
+                    ${repaymentSchedule.endYearMonth}
+                  </div>
+                  <div className="text-[11px] text-indigo-200 font-medium mt-1">
+                    총 ${repaymentSchedule.totalMonths}개월 소요 (${Math.floor(repaymentSchedule.totalMonths / 12)}년 ${repaymentSchedule.totalMonths % 12}개월)
+                  </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-2">
+                    <span>매월 필요 상환액</span>
+                    <i data-lucide="coins" className="w-4 h-4 text-indigo-500"></i>
+                  </div>
+                  <div className="text-2xl font-black tracking-tight font-mono text-indigo-600">
+                    ${repaymentSchedule.monthlyPay.toLocaleString()}원
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-medium mt-1">
+                    ${calcMode === 'byAmount' ? '고정 납입 금액 기준' : `목표 ${inputTargetMonths}개월 균등 상환`}
+                  </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center justify-between text-slate-400 text-xs font-bold mb-2">
+                    <span>총 상환 예정액</span>
+                    <i data-lucide="receipt" className="w-4 h-4 text-slate-400"></i>
+                  </div>
+                  <div className="text-2xl font-black tracking-tight font-mono text-slate-900">
+                    ${repaymentSchedule.totalPaid.toLocaleString()}원
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-medium mt-1">
+                    원금 ${Math.abs(currentAccBalance).toLocaleString()}원 ${repaymentSchedule.totalInterest > 0 ? `+ 이자 ${repaymentSchedule.totalInterest.toLocaleString()}원` : '(무이자)'}
+                  </div>
+                </div>
+              </div>
+
+              <!-- 월별 상환 스케줄 표 -->
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-4 sm:p-5 border-b bg-slate-50 flex justify-between items-center">
+                  <h4 className="font-black text-sm text-slate-800 flex items-center gap-2">
+                    <i data-lucide="list-ordered" className="w-4 h-4 text-indigo-600"></i>
+                    <span>회차별 상환 스케줄 타임라인</span>
+                  </h4>
+                  <span className="text-xs text-slate-400 font-bold">
+                    총 ${repaymentSchedule.schedule.length}회차 분할 납부
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto max-h-[420px] modal-scroll">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-wider sticky top-0 border-b">
+                      <tr>
+                        <th className="py-2.5 px-4 text-center w-12">회차</th>
+                        <th className="py-2.5 px-4">대상월</th>
+                        <th className="py-2.5 px-4 text-right">월 납입액</th>
+                        <th className="py-2.5 px-4 text-right">원금 상환</th>
+                        ${annualInterestRate > 0 && html`<th className="py-2.5 px-4 text-right">이자액</th>`}
+                        <th className="py-2.5 px-4 text-right">상환 후 잔여 잔액</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      ${repaymentSchedule.schedule.length === 0 ? html`
+                        <tr><td colSpan="6" className="py-8 text-center text-slate-400">상환할 잔액이 없습니다 (0원).</td></tr>
+                      ` : repaymentSchedule.schedule.map((item, idx) => {
+                        const isLast = idx === repaymentSchedule.schedule.length - 1;
+                        return html`
+                          <tr key=${item.round} className=${`hover:bg-slate-50/60 ${isLast ? 'bg-indigo-50/50 font-bold' : ''}`}>
+                            <td className="py-2 px-4 text-center font-mono text-slate-400">${item.round}</td>
+                            <td className="py-2 px-4 font-mono font-bold text-slate-700">${item.yearMonth}</td>
+                            <td className="py-2 px-4 text-right font-mono font-bold text-indigo-600">${item.pay.toLocaleString()}원</td>
+                            <td className="py-2 px-4 text-right font-mono text-slate-600">${item.payPrincipal.toLocaleString()}원</td>
+                            ${annualInterestRate > 0 && html`<td className="py-2 px-4 text-right font-mono text-rose-500">${item.interest.toLocaleString()}원</td>`}
+                            <td className="py-2 px-4 text-right font-mono font-bold ${item.remPrincipal === 0 ? 'text-emerald-600' : 'text-slate-800'}">
+                              ${item.remPrincipal === 0 ? html`<span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] mr-1">완제</span> 0원` : `${item.remPrincipal.toLocaleString()}원`}
+                            </td>
+                          </tr>
+                        `;
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `}
+
+      <!-- 서브탭 2: 종합 순자산 & 미래 재정 예측 -->
+      ${activeSubTab === 'networth' && html`
+        <div className="space-y-6">
+          <!-- 현재 재정 상태 바 -->
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-400 block mb-1">현재 총자산</span>
+              <span className="text-xl sm:text-2xl font-black font-mono text-indigo-600">${totalAssets.toLocaleString()}원</span>
+            </div>
+            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-400 block mb-1">현재 총부채</span>
+              <span className="text-xl sm:text-2xl font-black font-mono text-rose-500">${totalLiabilitiesOnly.toLocaleString()}원</span>
+            </div>
+            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-400 block mb-1">현재 순자산 (자산 - 부채)</span>
+              <span className=${`text-xl sm:text-2xl font-black font-mono ${currentNetWorth < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                ${currentNetWorth.toLocaleString()}원
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 시나리오 입력 패널 -->
+            <div className="lg:col-span-1 bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5 h-fit">
+              <div className="flex items-center justify-between border-b pb-3">
+                <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
+                  <i data-lucide="calculator" className="w-4 h-4 text-indigo-600"></i>
+                  <span>예상 수익 / 비용 설정</span>
+                </h3>
+                <button
+                  onClick=${() => {
+                    setSimMonthlyRevenue(recentAverages.avgRevenue);
+                    setSimMonthlyExpense(recentAverages.avgExpense);
+                  }}
+                  className="text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 transition-colors"
+                >
+                  최근 평균값 적용
+                </button>
+              </div>
+
+              <!-- 월 예상 총수익 -->
+              <div>
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">월 예상 총수익</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value=${simMonthlyRevenue || ''}
+                    onChange=${(e) => setSimMonthlyRevenue(Number(e.target.value))}
+                    step="100000"
+                    className="w-full p-3 pr-8 rounded-xl bg-slate-50 border border-slate-200 text-sm font-black font-mono text-emerald-600 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  />
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">원</span>
+                </div>
+              </div>
+
+              <!-- 월 예상 총비용 -->
+              <div>
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">월 예상 총비용</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value=${simMonthlyExpense || ''}
+                    onChange=${(e) => setSimMonthlyExpense(Number(e.target.value))}
+                    step="50000"
+                    className="w-full p-3 pr-8 rounded-xl bg-slate-50 border border-slate-200 text-sm font-black font-mono text-rose-500 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  />
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">원</span>
+                </div>
+              </div>
+
+              <!-- 월 순잉여금 실시간 표시 -->
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase block">월 예상 순잉여금 (저축 여력)</span>
+                <div className=${`text-xl font-black font-mono ${monthlySurplus >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  ${monthlySurplus >= 0 ? '+' : ''}${monthlySurplus.toLocaleString()}원
+                </div>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  ${monthlySurplus >= 0 ? '매월 순자산이 이 금액만큼 순증가합니다.' : '적자 구조로 매월 순자산이 감소합니다.'}
+                </p>
+              </div>
+
+              <!-- 시뮬레이션 기간 -->
+              <div>
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">시뮬레이션 기간</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value=${simMonths || ''}
+                    onChange=${(e) => setSimMonths(Number(e.target.value))}
+                    className="w-full p-3 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-sm font-black font-mono text-indigo-600 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  />
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">개월</span>
+                </div>
+                <div className="flex gap-1.5 mt-2">
+                  ${[6, 12, 24, 36, 60, 120].map(m => html`
+                    <button
+                      key=${m}
+                      onClick=${() => setSimMonths(m)}
+                      className=${`text-[10px] px-2 py-1 rounded-lg font-bold transition-colors ${simMonths === m ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                    >
+                      ${m >= 12 ? `${m / 12}년` : `${m}개월`}
+                    </button>
+                  `)}
+                </div>
+              </div>
+
+              <!-- 연간 자산 수익률 -->
+              <div className="pt-2 border-t border-slate-100">
+                <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">연간 자산 기대 수익률 (% - 선택)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  placeholder="0 (단순 누적)"
+                  value=${simAssetReturnRate || ''}
+                  onChange=${(e) => setSimAssetReturnRate(Number(e.target.value))}
+                  className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 outline-none font-mono"
+                />
+              </div>
+            </div>
+
+            <!-- 오른쪽: 미래 순자산 대시보드 & 시나리오 비교 -->
+            <div className="lg:col-span-2 space-y-6">
+              <!-- 메인 결과 배너 -->
+              <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-indigo-950 p-6 sm:p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
+                <div className="relative z-10 space-y-4">
+                  <div className="flex items-center justify-between text-indigo-300 text-xs font-bold">
+                    <span>${simMonths}개월 후 (${netWorthProjection.timeline[netWorthProjection.timeline.length - 1]?.yearMonth || ''}) 예상 순자산</span>
+                    <span className="bg-indigo-700/60 px-3 py-1 rounded-full text-indigo-200 text-[11px]">
+                      연 ${((monthlySurplus * 12) / 10000).toFixed(0)}만원 저축 페이스
+                    </span>
+                  </div>
+                  <div className="text-3xl sm:text-5xl font-black font-mono tracking-tight text-white">
+                    ${netWorthProjection.finalNetWorth.toLocaleString()}원
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs pt-1">
+                    <span className="text-indigo-200">
+                      현재 대비 <span className="font-black text-emerald-400 font-mono">${netWorthProjection.diff >= 0 ? '+' : ''}${netWorthProjection.diff.toLocaleString()}원</span>
+                    </span>
+                    <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-md font-mono font-bold">
+                      ${netWorthProjection.pct}% 성장
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3대 What-If 시나리오 비교 카드 -->
+              <div>
+                <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3">3대 What-If 시나리오 비교</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <!-- 기본 계획 -->
+                  <div className="bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm">
+                    <span className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">기본 계획</span>
+                    <div className="mt-2 text-base font-black font-mono text-slate-900">
+                      ${compareScenarios.base.final.toLocaleString()}원
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-medium">월 잉여금 ${compareScenarios.base.surplus.toLocaleString()}원</span>
+                  </div>
+
+                  <!-- 지출 15% 절약 -->
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-emerald-200 transition-all">
+                    <span className="text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">지출 15% 절약</span>
+                    <div className="mt-2 text-base font-black font-mono text-emerald-600">
+                      ${compareScenarios.cutExp.final.toLocaleString()}원
+                    </div>
+                    <span className="text-[11px] text-emerald-500 font-bold font-mono">
+                      +${compareScenarios.cutExp.diff.toLocaleString()}원 더 축적
+                    </span>
+                  </div>
+
+                  <!-- 수익 10% 증대 -->
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-200 transition-all">
+                    <span className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">수익 10% 증대</span>
+                    <div className="mt-2 text-base font-black font-mono text-indigo-600">
+                      ${compareScenarios.boostRev.final.toLocaleString()}원
+                    </div>
+                    <span className="text-[11px] text-indigo-500 font-bold font-mono">
+                      +${compareScenarios.boostRev.diff.toLocaleString()}원 더 축적
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 자산 마일스톤 달성 예측 -->
+              <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider">주요 순자산 마일스톤 도달 예상 시점</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  ${[
+                    { label: '5천만원', data: netWorthProjection.milestones.milestone50M },
+                    { label: '1억원', data: netWorthProjection.milestones.milestone100M },
+                    { label: '3억원', data: netWorthProjection.milestones.milestone300M },
+                    { label: '5억원', data: netWorthProjection.milestones.milestone500M }
+                  ].map(m => html`
+                    <div key=${m.label} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+                      <div className="text-[10px] font-black text-slate-400 mb-1">${m.label}</div>
+                      ${m.data ? html`
+                        <div className="font-mono font-bold text-xs text-indigo-700">${m.data.month}</div>
+                        <div className="text-[9px] text-slate-500 mt-0.5">(${m.data.index}개월 후)</div>
+                      ` : html`
+                        <div className="font-bold text-xs text-slate-300">기간 내 미도달</div>
+                      `}
+                    </div>
+                  `)}
+                </div>
+              </div>
+
+              <!-- 월별 순자산 성장 타임라인 표 -->
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-4 sm:p-5 border-b bg-slate-50 flex justify-between items-center">
+                  <h4 className="font-black text-sm text-slate-800 flex items-center gap-2">
+                    <i data-lucide="calendar" className="w-4 h-4 text-indigo-600"></i>
+                    <span>월별 순자산 누적 추이</span>
+                  </h4>
+                  <span className="text-xs text-slate-400 font-bold">
+                    총 ${netWorthProjection.timeline.length}개월 시뮬레이션
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto max-h-[350px] modal-scroll">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-wider sticky top-0 border-b">
+                      <tr>
+                        <th className="py-2.5 px-4 text-center w-12">경과</th>
+                        <th className="py-2.5 px-4">예측 연월</th>
+                        <th className="py-2.5 px-4 text-right">월 잉여금</th>
+                        <th className="py-2.5 px-4 text-right">예상 순자산</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      ${netWorthProjection.timeline.map((item) => html`
+                        <tr key=${item.monthIndex} className="hover:bg-slate-50/60">
+                          <td className="py-2 px-4 text-center font-mono text-slate-400">${item.monthIndex}M</td>
+                          <td className="py-2 px-4 font-mono font-bold text-slate-700">${item.yearMonth}</td>
+                          <td className="py-2 px-4 text-right font-mono text-emerald-600 font-bold">+${item.monthlySurplus.toLocaleString()}원</td>
+                          <td className="py-2 px-4 text-right font-mono font-black text-slate-900">${item.netWorth.toLocaleString()}원</td>
+                        </tr>
+                      `)}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `}
+    </div>
+  `;
+};
+
 // --- App Component ---
 const App = () => {
   const { data, setData, loading, error, getAccountById, saveTransaction, deleteTransaction, saveSettingsData, saveBudget, flatAccounts, reload } = useAccounting();
@@ -1273,6 +2279,7 @@ const App = () => {
   const [draggedAccountId, setDraggedAccountId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchDateRange, setSearchDateRange] = useState({ start: '', end: '' });
+  const [isPrintReportModalOpen, setIsPrintReportModalOpen] = useState(false);
   const [isSavingEntry, setIsSavingEntry] = useState(false);
 
   const [selectedAccountForTag, setSelectedAccountForTag] = useState(null);
@@ -1487,7 +2494,7 @@ const App = () => {
   }, [orphanAccountBalances]);
 
   const orphanLiabilitiesTotal = useMemo(() => {
-    return orphanAccountBalances.filter(o => o.balance < 0).reduce((sum, o) => sum + Math.abs(o.balance), 0);
+    return orphanAccountBalances.filter(o => o.balance < 0).reduce((sum, o) => sum + (-o.balance), 0);
   }, [orphanAccountBalances]);
 
   const totalAssets = useMemo(() => {
@@ -1495,15 +2502,15 @@ const App = () => {
   }, [accounts.assets, accountBalances, orphanAssetsTotal]);
 
   const totalLiabilitiesOnly = useMemo(() => {
-    return accounts.liabilities.filter(a => a.name !== '이익잉여금').reduce((sum, acc) => sum + Math.abs(accountBalances[acc.id] || 0), 0) + orphanLiabilitiesTotal;
+    return accounts.liabilities.filter(a => a.name !== '이익잉여금').reduce((sum, acc) => sum + (-(accountBalances[acc.id] || 0)), 0) + orphanLiabilitiesTotal;
   }, [accounts.liabilities, accountBalances, orphanLiabilitiesTotal]);
   
   const retainedEarningsAcc = flatAccounts.find(a => a.name === '이익잉여금');
   const retainedEarningsId = retainedEarningsAcc ? retainedEarningsAcc.id : 'e1';
-  const retainedEarningsBalance = Math.abs(accountBalances[retainedEarningsId] || 0);
+  const retainedEarningsBalance = -(accountBalances[retainedEarningsId] || 0);
   const retainedEarningsRow = useMemo(() => (initialSetup.credits || []).find(c => String(c.accountId) === String(retainedEarningsId)), [initialSetup.credits, retainedEarningsId]);
   const retainedEarningsAmount = retainedEarningsRow ? retainedEarningsRow.amount : 0;
-  const currentEquity = calculatedInitialCapital + (accountBalances[retainedEarningsId] < 0 ? Math.abs(accountBalances[retainedEarningsId]) : -accountBalances[retainedEarningsId]) + unsettledNetIncome;
+  const currentEquity = calculatedInitialCapital + retainedEarningsBalance + unsettledNetIncome;
 
   const [isLoadingReassign, setIsLoadingReassign] = useState(false);
   const [selectedOrphanForReassign, setSelectedOrphanForReassign] = useState(null);
@@ -1782,7 +2789,8 @@ const App = () => {
             { id: 'IS', label: '손익계산서', icon: 'pie-chart' },
             { id: 'GL', label: '총계정원장', icon: 'book-open' },
             { id: 'EXPENSE_REPORT', label: '월간손익명세', icon: 'trending-up' },
-            { id: 'BUDGET', label: '월별예산', icon: 'piggy-bank' }
+            { id: 'BUDGET', label: '월별예산', icon: 'piggy-bank' },
+            { id: 'SCENARIO', label: '미래 시나리오', icon: 'sparkles' }
           ].map(nav => html`
             <button key=${nav.id} onClick=${() => { setCurrentView(nav.id); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className=${`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${currentView === nav.id ? 'bg-indigo-600 text-white shadow-md' : 'hover:bg-slate-100 text-slate-500'}`}>
               <i data-lucide=${nav.icon} className="shrink-0"></i>
@@ -1842,6 +2850,7 @@ const App = () => {
                 <div className="space-y-3 sm:space-y-4 min-h-[100px] sm:min-h-[250px]">
                   ${accounts.assets.filter(acc => (accountBalances[acc.id] || 0) !== 0).map(acc => {
                     const totalAmount = accountBalances[acc.id] || 0;
+                    const isNeg = totalAmount < 0;
                     const tagData = accountBalancesWithTags[acc.id]?.tags || {};
                     const sortedTags = Object.keys(tagData).map(tag => ({ tag, amount: tagData[tag] })).filter(t => t.amount !== 0);
                     const taggedSum = sortedTags.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
@@ -1850,15 +2859,17 @@ const App = () => {
                     <div key=${acc.id} className="flex flex-col py-2 border-b border-transparent hover:bg-slate-50/50 px-1 rounded-xl transition-all">
                       <div className="flex justify-between items-center">
                         <span className="text-xs sm:text-base text-slate-600 font-medium">${acc.name}</span>
-                        <span className="font-mono font-bold text-sm sm:text-lg">${totalAmount.toLocaleString()}원</span>
+                        <span className=${`font-mono font-bold text-sm sm:text-lg ${isNeg ? 'text-rose-600 font-black' : 'text-slate-800'}`}>
+                          ${isNeg ? `(${Math.abs(totalAmount).toLocaleString()})원` : `${totalAmount.toLocaleString()}원`}
+                        </span>
                       </div>
                       ${sortedTags.map(t => React.createElement('div', { key: t.tag, className: "flex justify-between items-center mt-1 pl-3" },
                         React.createElement('span', { className: "text-[10px] text-slate-500 font-medium" }, "ㄴ " + t.tag),
-                        React.createElement('span', { className: "font-mono text-[10px] sm:text-xs font-semibold text-slate-500" }, Number(t.amount || 0).toLocaleString() + "원")
+                        React.createElement('span', { className: `font-mono text-[10px] sm:text-xs font-semibold ${t.amount < 0 ? 'text-rose-500' : 'text-slate-500'}` }, (t.amount < 0 ? `(${Math.abs(t.amount).toLocaleString()})` : Number(t.amount || 0).toLocaleString()) + "원")
                       ))}
                       ${sortedTags.length > 0 && untaggedAmount !== 0 && React.createElement('div', { key: 'untagged', className: "flex justify-between items-center mt-1 pl-3" },
                         React.createElement('span', { className: "text-[10px] text-slate-400 font-medium" }, "ㄴ 그 외"),
-                        React.createElement('span', { className: "font-mono text-[10px] sm:text-xs font-semibold text-slate-400" }, Number(untaggedAmount).toLocaleString() + "원")
+                        React.createElement('span', { className: `font-mono text-[10px] sm:text-xs font-semibold ${untaggedAmount < 0 ? 'text-rose-500' : 'text-slate-400'}` }, (untaggedAmount < 0 ? `(${Math.abs(untaggedAmount).toLocaleString()})` : Number(untaggedAmount).toLocaleString()) + "원")
                       )}
                     </div>
                   `})}
@@ -1882,39 +2893,48 @@ const App = () => {
                   <h3 className="text-sm sm:text-xl font-black text-red-500 border-b-2 border-red-500 pb-2 mb-4 sm:mb-6 uppercase tracking-widest text-center">Liabilities</h3>
                   <div className="space-y-3 sm:space-y-4 mb-4">
                     ${accounts.liabilities.filter(a => a.name !== '이익잉여금' && (accountBalances[a.id] || 0) !== 0).map(acc => {
-                      const totalAmount = Math.abs(accountBalances[acc.id] || 0);
+                      const totalAmount = -(accountBalances[acc.id] || 0);
+                      const isNeg = totalAmount < 0;
                       const tagData = accountBalancesWithTags[acc.id]?.tags || {};
-                      const sortedTags = Object.keys(tagData).map(tag => ({ tag, amount: tagData[tag] })).filter(t => t.amount !== 0);
-                      const taggedSum = sortedTags.reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0);
+                      const sortedTags = Object.keys(tagData).map(tag => ({ tag, amount: -(tagData[tag] || 0) })).filter(t => t.amount !== 0);
+                      const taggedSum = sortedTags.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
                       const untaggedAmount = totalAmount - taggedSum;
                       return html`
                       <div key=${acc.id} className="flex flex-col py-2 border-b border-transparent hover:bg-slate-50/50 px-1 rounded-xl transition-all">
                         <div className="flex justify-between items-center">
                           <span className="text-xs sm:text-base text-slate-600 font-medium">${acc.name}</span>
-                          <span className="font-mono font-bold text-sm sm:text-lg">${totalAmount.toLocaleString()}원</span>
+                          <span className=${`font-mono font-bold text-sm sm:text-lg ${isNeg ? 'text-rose-600 font-black' : 'text-slate-800'}`}>
+                            ${isNeg ? `(${Math.abs(totalAmount).toLocaleString()})원` : `${totalAmount.toLocaleString()}원`}
+                          </span>
                         </div>
                         ${sortedTags.map(t => React.createElement('div', { key: t.tag, className: "flex justify-between items-center mt-1 pl-3" },
                           React.createElement('span', { className: "text-[10px] text-slate-500 font-medium" }, "ㄴ " + t.tag),
-                          React.createElement('span', { className: "font-mono text-[10px] sm:text-xs font-semibold text-slate-500" }, Number(Math.abs(t.amount) || 0).toLocaleString() + "원")
+                          React.createElement('span', { className: `font-mono text-[10px] sm:text-xs font-semibold ${t.amount < 0 ? 'text-rose-500' : 'text-slate-500'}` }, (t.amount < 0 ? `(${Math.abs(t.amount).toLocaleString()})` : Number(t.amount || 0).toLocaleString()) + "원")
                         ))}
                         ${sortedTags.length > 0 && untaggedAmount !== 0 && React.createElement('div', { key: 'untagged', className: "flex justify-between items-center mt-1 pl-3" },
                           React.createElement('span', { className: "text-[10px] text-slate-400 font-medium" }, "ㄴ 그 외"),
-                          React.createElement('span', { className: "font-mono text-[10px] sm:text-xs font-semibold text-slate-400" }, Number(untaggedAmount).toLocaleString() + "원")
+                          React.createElement('span', { className: `font-mono text-[10px] sm:text-xs font-semibold ${untaggedAmount < 0 ? 'text-rose-500' : 'text-slate-400'}` }, (untaggedAmount < 0 ? `(${Math.abs(untaggedAmount).toLocaleString()})` : Number(untaggedAmount).toLocaleString()) + "원")
                         )}
                       </div>
                     `})}
-                    ${orphanAccountBalances.filter(o => o.balance < 0).map(o => html`
-                      <div key=${o.id} className="flex flex-col py-2 border border-amber-200 bg-amber-50/60 p-2.5 rounded-xl transition-all">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs sm:text-sm text-amber-800 font-bold flex items-center gap-1.5">
-                            <i data-lucide="alert-triangle" className="w-3.5 h-3.5 text-amber-500 shrink-0"></i>
-                            <span>[미분류/삭제] ${o.id}</span>
-                          </span>
-                          <span className="font-mono font-bold text-sm sm:text-base text-amber-700">${Math.abs(o.balance).toLocaleString()}원</span>
+                    ${orphanAccountBalances.filter(o => o.balance < 0).map(o => {
+                      const orphanBal = -o.balance;
+                      const isNeg = orphanBal < 0;
+                      return html`
+                        <div key=${o.id} className="flex flex-col py-2 border border-amber-200 bg-amber-50/60 p-2.5 rounded-xl transition-all">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs sm:text-sm text-amber-800 font-bold flex items-center gap-1.5">
+                              <i data-lucide="alert-triangle" className="w-3.5 h-3.5 text-amber-500 shrink-0"></i>
+                              <span>[미분류/삭제] ${o.id}</span>
+                            </span>
+                            <span className=${`font-mono font-bold text-sm sm:text-base ${isNeg ? 'text-rose-600' : 'text-amber-700'}`}>
+                              ${isNeg ? `(${Math.abs(orphanBal).toLocaleString()})원` : `${orphanBal.toLocaleString()}원`}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-amber-600 font-medium mt-1">설정 > 계정과목에서 정상 계정으로 이관하세요</span>
                         </div>
-                        <span className="text-[10px] text-amber-600 font-medium mt-1">설정 > 계정과목에서 정상 계정으로 이관하세요</span>
-                      </div>
-                    `)}
+                      `;
+                    })}
                   </div>
                   <div className="flex justify-between items-center border-t border-dashed border-slate-200 pt-2 mb-6 sm:mb-8 font-bold text-slate-700">
                     <span className="text-xs sm:text-sm uppercase text-slate-500">Total Liabilities</span>
@@ -2009,23 +3029,69 @@ const App = () => {
 
           ${currentView === 'GL' && html`
             <div className="max-w-6xl mx-auto space-y-6 pb-10">
-              <${Card} className="flex flex-col sm:flex-row items-center gap-3 !p-4">
-                <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100 w-full sm:w-auto">
-                  <i data-lucide="calendar" className="text-slate-400 w-4 h-4 shrink-0"></i>
-                  <input type="date" className="bg-transparent outline-none font-bold text-slate-600 text-[11px] sm:text-sm cursor-pointer" value=${searchDateRange.start} onChange=${e => setSearchDateRange({...searchDateRange, start: e.target.value})} />
-                  <span className="text-slate-300">~</span>
-                  <input type="date" className="bg-transparent outline-none font-bold text-slate-600 text-[11px] sm:text-sm cursor-pointer" value=${searchDateRange.end} onChange=${e => setSearchDateRange({...searchDateRange, end: e.target.value})} />
-                  ${(searchDateRange.start || searchDateRange.end) && html`<button onClick=${() => setSearchDateRange({start: '', end: ''})} className="ml-1 text-slate-400 hover:text-red-500"><i data-lucide="x-circle" className="w-4 h-4"></i></button>`}
+              <${Card} className="flex flex-col gap-3 !p-4">
+                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                  <!-- 기간 선택 및 퀵 버튼 -->
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                      <i data-lucide="calendar" className="text-slate-400 w-4 h-4 shrink-0"></i>
+                      <input type="date" className="bg-transparent outline-none font-bold text-slate-600 text-[11px] sm:text-sm cursor-pointer" value=${searchDateRange.start} onChange=${e => setSearchDateRange({...searchDateRange, start: e.target.value})} />
+                      <span className="text-slate-300">~</span>
+                      <input type="date" className="bg-transparent outline-none font-bold text-slate-600 text-[11px] sm:text-sm cursor-pointer" value=${searchDateRange.end} onChange=${e => setSearchDateRange({...searchDateRange, end: e.target.value})} />
+                      ${(searchDateRange.start || searchDateRange.end) && html`<button onClick=${() => setSearchDateRange({start: '', end: ''})} className="ml-1 text-slate-400 hover:text-red-500"><i data-lucide="x-circle" className="w-4 h-4"></i></button>`}
+                    </div>
+
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
+                      <button onClick=${() => setSearchDateRange({ start: '', end: '' })} className=${`px-2.5 py-1 rounded-lg transition-colors ${!searchDateRange.start && !searchDateRange.end ? 'bg-white text-indigo-600 shadow-sm' : 'hover:bg-slate-200'}`}>전체</button>
+                      <button onClick=${() => {
+                        const now = new Date();
+                        const start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+                        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                        const end = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                        setSearchDateRange({ start, end });
+                      }} className="px-2.5 py-1 rounded-lg hover:bg-slate-200 transition-colors">이번달</button>
+                      <button onClick=${() => {
+                        const now = new Date();
+                        const lastM = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                        const start = `${lastM.getFullYear()}-${String(lastM.getMonth() + 1).padStart(2, '0')}-01`;
+                        const lastDay = new Date(lastM.getFullYear(), lastM.getMonth() + 1, 0).getDate();
+                        const end = `${lastM.getFullYear()}-${String(lastM.getMonth() + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                        setSearchDateRange({ start, end });
+                      }} className="px-2.5 py-1 rounded-lg hover:bg-slate-200 transition-colors">지난달</button>
+                      <button onClick=${() => {
+                        const now = new Date();
+                        setSearchDateRange({ start: `${now.getFullYear()}-01-01`, end: `${now.getFullYear()}-12-31` });
+                      }} className="px-2.5 py-1 rounded-lg hover:bg-slate-200 transition-colors">올해</button>
+                    </div>
+                  </div>
+
+                  <!-- 보고서 인쇄 버튼 -->
+                  <div className="flex items-center gap-2 self-end md:self-auto">
+                    <button
+                      onClick=${() => setIsPrintReportModalOpen(true)}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-sm transition-all active:scale-95"
+                    >
+                      <i data-lucide="printer" className="w-4 h-4"></i>
+                      <span>거래내역 보고서 출력</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="flex-1 flex items-center gap-2 w-full">
+
+                <div className="flex items-center gap-2 w-full pt-1 border-t border-slate-100">
                   <i data-lucide="search" className="text-slate-400 shrink-0"></i>
-                  <input className="flex-1 bg-transparent outline-none font-bold text-slate-700 text-sm sm:text-base" placeholder="메모, 날짜, 계정과목명으로 실시간 검색..." value=${searchTerm} onChange=${e => setSearchTerm(e.target.value)} />
+                  <input className="flex-1 bg-transparent outline-none font-bold text-slate-700 text-sm sm:text-base" placeholder="거래처, 적요, 날짜, 계정과목명으로 실시간 검색..." value=${searchTerm} onChange=${e => setSearchTerm(e.target.value)} />
                 </div>
               <//>
 
               ${(searchTerm || searchDateRange.start || searchDateRange.end) ? html`
                 <${Card}>
-                  <div className="border-b px-5 py-4 bg-slate-50"><h3 className="font-black uppercase tracking-widest text-sm text-slate-800">검색 결과 (${filteredTxs.length}건)</h3></div>
+                  <div className="border-b px-5 py-4 bg-slate-50 flex justify-between items-center">
+                    <h3 className="font-black uppercase tracking-widest text-sm text-slate-800">검색 결과 (${filteredTxs.length}건)</h3>
+                    <button onClick=${() => setIsPrintReportModalOpen(true)} className="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1">
+                      <i data-lucide="printer" className="w-3.5 h-3.5"></i>
+                      <span>이 결과 인쇄하기</span>
+                    </button>
+                  </div>
                   <div className="p-5 space-y-3">
                     ${filteredTxs.length === 0 && html`<p className="text-center text-slate-400 py-8 text-sm">검색 결과가 없습니다.</p>`}
                     ${filteredTxs.map(t => html`
@@ -2038,11 +3104,11 @@ const App = () => {
                         <div className="grid grid-cols-2 gap-4 text-sm bg-white p-3 rounded-lg border border-slate-100">
                           <div>
                             <div className="text-[10px] text-slate-400 uppercase font-black mb-1 border-b pb-1">차변 (Debit)</div>
-                            ${t.debits.map((d, i) => html`<div key=${i} className="flex justify-between items-center py-0.5"><span className="text-indigo-600 font-medium text-xs">${getAccountById(d.accountId).name}</span><${MoneyText} amount=${d.amount} className="text-xs" /></div>`)}
+                            ${t.debits.map((d, i) => html`<div key=${i} className="flex justify-between items-center py-0.5"><span className="text-indigo-600 font-medium text-xs">${getAccountById(d.accountId)?.name || d.accountId}</span><${MoneyText} amount=${d.amount} className="text-xs" /></div>`)}
                           </div>
                           <div>
                             <div className="text-[10px] text-slate-400 uppercase font-black mb-1 border-b pb-1">대변 (Credit)</div>
-                            ${t.credits.map((c, i) => html`<div key=${i} className="flex justify-between items-center py-0.5"><span className="text-red-500 font-medium text-xs">${getAccountById(c.accountId).name}</span><${MoneyText} amount=${c.amount} className="text-xs" /></div>`)}
+                            ${t.credits.map((c, i) => html`<div key=${i} className="flex justify-between items-center py-0.5"><span className="text-red-500 font-medium text-xs">${getAccountById(c.accountId)?.name || c.accountId}</span><${MoneyText} amount=${c.amount} className="text-xs" /></div>`)}
                           </div>
                         </div>
                       </div>
@@ -2052,7 +3118,24 @@ const App = () => {
               ` : html`
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 text-slate-800">
                   ${['assets', 'liabilities', 'revenue', 'expenses'].map(cat => html`
-                    <div key=${cat} className="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm h-fit"><h3 className="text-[10px] sm:text-xs font-black uppercase text-slate-400 mb-3 text-center tracking-widest">${cat.toUpperCase()} Accounts</h3><div className="space-y-1.5">${(cat === 'liabilities' ? [...(accounts[cat] || []), {id: 'closing_temp', name: '결산(임시)'}] : [...(accounts[cat] || [])]).sort((a,b) => a.name.localeCompare(b.name, 'ko-KR')).map(a => html`<div key=${a.id} className="flex justify-between p-3 bg-slate-50 rounded-xl border border-transparent font-bold"><span className="text-xs sm:text-base">${a.name}</span><span className="font-mono text-sm sm:text-base">${(cat==='liabilities'||cat==='revenue' ? Math.abs(accountBalances[a.id] || 0) : accountBalances[a.id] || 0).toLocaleString()}원</span></div>`)}</div></div>
+                    <div key=${cat} className="bg-white p-4 sm:p-6 rounded-2xl border shadow-sm h-fit">
+                      <h3 className="text-[10px] sm:text-xs font-black uppercase text-slate-400 mb-3 text-center tracking-widest">${cat.toUpperCase()} Accounts</h3>
+                      <div className="space-y-1.5">
+                        ${(cat === 'liabilities' ? [...(accounts[cat] || []), {id: 'closing_temp', name: '결산(임시)'}] : [...(accounts[cat] || [])]).sort((a,b) => a.name.localeCompare(b.name, 'ko-KR')).map(a => {
+                          let bal = accountBalances[a.id] || 0;
+                          if (cat === 'liabilities' || cat === 'revenue') bal = -bal;
+                          const isNeg = bal < 0;
+                          return html`
+                            <div key=${a.id} className="flex justify-between p-3 bg-slate-50 rounded-xl border border-transparent font-bold">
+                              <span className="text-xs sm:text-base">${a.name}</span>
+                              <span className=${`font-mono text-sm sm:text-base ${isNeg ? 'text-rose-600 font-black' : 'text-slate-800'}`}>
+                                ${isNeg ? `(${Math.abs(bal).toLocaleString()})원` : `${bal.toLocaleString()}원`}
+                              </span>
+                            </div>
+                          `;
+                        })}
+                      </div>
+                    </div>
                   `)}
                 </div>
               `}
@@ -2070,13 +3153,25 @@ const App = () => {
             <${MonthlyBudgetReport} accounts=${accounts} transactions=${transactions} budgets=${data.budgets} saveBudget=${saveBudget} />
           `}
 
+          ${currentView === 'SCENARIO' && html`
+            <${ScenarioView} 
+              accounts=${accounts} 
+              transactions=${transactions} 
+              accountBalances=${accountBalances} 
+              flatAccounts=${flatAccounts} 
+              getAccountById=${getAccountById} 
+              totalAssets=${totalAssets} 
+              totalLiabilitiesOnly=${totalLiabilitiesOnly} 
+            />
+          `}
+
         </div>
       </main>
 
       <${Modal} isOpen=${isSettingsModalOpen} onClose=${() => setIsSettingsModalOpen(false)} title="더블북 환경 설정" maxWidth="max-w-5xl" zIndex="z-[100]">
         <div className="flex flex-col md:flex-row gap-4 h-[78vh] md:h-[650px] overflow-hidden text-slate-800">
           <div className="flex md:flex-col overflow-x-auto pb-1 md:pb-0 gap-1.5 w-full md:w-48 shrink-0">
-            ${[{ id: 'equity', label: '자본금', icon: 'coins' }, { id: 'accounts', label: '계정과목', icon: 'settings' }, { id: 'tags', label: '태그 관리', icon: 'tag' }, { id: 'editTransactions', label: '거래 관리', icon: 'edit-3' }].map(tab => html`
+            ${[{ id: 'equity', label: '자본금', icon: 'coins' }, { id: 'accounts', label: '계정과목', icon: 'settings' }, { id: 'tags', label: '태그 관리', icon: 'tag' }].map(tab => html`
               <button key=${tab.id} onClick=${() => setSettingsTab(tab.id)} className=${`flex items-center justify-center md:justify-start gap-2 p-3 sm:p-4 rounded-xl font-bold transition-all flex-1 md:flex-none text-xs sm:text-sm whitespace-nowrap ${settingsTab === tab.id ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}><i data-lucide=${tab.icon} className="w-4 h-4"></i>${tab.label}</button>
             `)}
             ${isDirty && html`
@@ -2388,27 +3483,6 @@ const App = () => {
                 </div>
               </div>
             `}
-            ${settingsTab === 'editTransactions' && html`
-              <div className="space-y-4 pb-10">
-                <div className="flex items-center gap-2 mb-4 bg-white p-3 rounded-xl border border-slate-100 text-slate-800 font-bold overflow-x-auto">
-                  <i data-lucide="search" className="text-slate-300 w-4 h-4 shrink-0"></i><input type="date" className="bg-transparent outline-none font-bold text-[11px] cursor-pointer" value=${editRange.start} onChange=${(e)=>setEditRange({...editRange, start: e.target.value})}/><span className="text-slate-300">~</span><input type="date" className="bg-transparent outline-none font-bold text-[11px] cursor-pointer" value=${editRange.end} onChange=${(e)=>setEditRange({...editRange, end: e.target.value})}/>
-                </div>
-                <div className="space-y-2">
-                  ${transactions.filter(t => t.date >= editRange.start && t.date <= editRange.end).sort((a,b) => b.date.localeCompare(a.date)).map(t => html`
-                    <div key=${t.id} onClick=${()=>{setEditingTransaction(t); setEntryRows({date:t.date, debits:t.debits, credits:t.credits, vendor:t.vendor||'', memo:t.memo}); setIsEntryModalOpen(true);}} className="p-3.5 bg-white border rounded-xl flex justify-between cursor-pointer hover:border-indigo-500 transition-all shadow-sm active:bg-indigo-50">
-                      <div>
-                        <p className="text-[9px] font-black text-slate-400 uppercase">${t.date}</p>
-                        <div className="font-bold text-xs text-slate-700 mt-0.5 flex items-center gap-1.5">
-                          ${t.vendor && html`<span className="bg-slate-100 text-slate-600 text-[9px] px-1.5 py-0.5 rounded border border-slate-200 font-bold shrink-0">${t.vendor}</span>`}
-                          <span>${t.memo || '거래 내역'}</span>
-                        </div>
-                      </div>
-                      <div className="text-right flex flex-col justify-center"><div className="font-mono font-black text-slate-700 text-xs sm:text-base">${(t.debits.reduce((s,d)=>s+d.amount, 0)).toLocaleString()}원</div></div>
-                    </div>
-                  `)}
-                </div>
-              </div>
-            `}
             ${isDirty && html`
               <div className="mt-6 md:hidden">
                 <${Button} variant="primary" onClick=${handleSyncSettings} className="w-full bg-orange-500 hover:bg-orange-600 animate-pulse">설정 변경사항 저장하기<//>
@@ -2541,6 +3615,16 @@ const App = () => {
       <${Modal} isOpen=${activePicker !== null} onClose=${() => setActivePicker(null)} title="계정과목 선택" maxWidth="max-w-4xl" zIndex="z-[150]">
         <${AccountGridPicker} accounts=${accounts} onPick=${handleAccountPick} />
       <//>
+
+      <${PrintReportModal} 
+        isOpen=${isPrintReportModalOpen} 
+        onClose=${() => setIsPrintReportModalOpen(false)} 
+        transactions=${transactions} 
+        accounts=${accounts} 
+        getAccountById=${getAccountById} 
+        dateRange=${searchDateRange} 
+        searchTerm=${searchTerm} 
+      />
     </div>
   `;
 };
