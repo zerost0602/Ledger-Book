@@ -5,8 +5,8 @@ function doGet() {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-function getSheet(name) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+function getSheet(name, ssInstance) {
+  const ss = ssInstance || SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
@@ -21,12 +21,64 @@ function getSheet(name) {
   return sheet;
 }
 
+function validateTransaction_(tx) {
+  if (!tx || !tx.date || !String(tx.memo || '').trim()) {
+    console.error("Invalid transaction: missing date or memo", tx);
+    return false;
+  }
+  if (!Array.isArray(tx.debits) || !Array.isArray(tx.credits) || tx.debits.length === 0 || tx.credits.length === 0) {
+    console.error("Invalid transaction: empty debits or credits", tx);
+    return false;
+  }
+  const hasInvalidRow =
+    tx.debits.some(function(d) { return !(d.accountId || d.account) || Number(d.amount || 0) <= 0; }) ||
+    tx.credits.some(function(c) { return !(c.accountId || c.account) || Number(c.amount || 0) <= 0; });
+  if (hasInvalidRow) {
+    console.error("Invalid transaction: missing accountId or non-positive amount", tx);
+    return false;
+  }
+  const debitSum = tx.debits.reduce(function(s, d) { return s + Number(d.amount || 0); }, 0);
+  const creditSum = tx.credits.reduce(function(s, c) { return s + Number(c.amount || 0); }, 0);
+  if (debitSum <= 0 || debitSum !== creditSum) {
+    console.error("Invalid transaction: unbalanced debits and credits", debitSum, creditSum);
+    return false;
+  }
+  return true;
+}
+
+function toTransactionRow_(tx) {
+  return [
+    String(tx.id),
+    tx.date,
+    JSON.stringify(tx.debits),
+    JSON.stringify(tx.credits),
+    String(tx.memo).trim(),
+    tx.vendor || ''
+  ];
+}
+
+function findTransactionRow_(sheet, id) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return -1;
+  const cell = sheet
+    .getRange(2, 1, lastRow - 1, 1)
+    .createTextFinder(String(id))
+    .matchEntireCell(true)
+    .matchCase(true)
+    .findNext();
+  return cell ? cell.getRow() : -1;
+}
+
 function getAllData() {
-  const settingsSheet = getSheet('Settings');
-  const transSheet = getSheet('Transactions');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const tz = Session.getScriptTimeZone();
+  const settingsSheet = getSheet('Settings', ss);
+  const transSheet = getSheet('Transactions', ss);
   
-  const settingsRaw = settingsSheet.getDataRange().getValues();
-  const transRaw = transSheet.getDataRange().getValues();
+  const settingsLastRow = settingsSheet.getLastRow();
+  const settingsRaw = settingsLastRow > 1 ? settingsSheet.getRange(2, 1, settingsLastRow - 1, 2).getValues() : [];
+  const transLastRow = transSheet.getLastRow();
+  const transRaw = transLastRow > 1 ? transSheet.getRange(2, 1, transLastRow - 1, 6).getValues() : [];
   
   let initialSetup = { debits: [{ account: '현금', amount: 0 }], credits: [] };
   let accounts = {
@@ -36,59 +88,42 @@ function getAllData() {
     expenses: [{ id: 'x1', name: '식비', subtype: 'variable' }]
   };
   
-  if (settingsRaw.length > 1) {
-    settingsRaw.forEach(row => {
-      if (row[0] === 'initialSetup') initialSetup = JSON.parse(row[1]);
-      if (row[0] === 'accounts') accounts = JSON.parse(row[1]);
-    });
-  }
+  settingsRaw.forEach(row => {
+    if (row[0] === 'initialSetup' && row[1]) initialSetup = JSON.parse(row[1]);
+    if (row[0] === 'accounts' && row[1]) accounts = JSON.parse(row[1]);
+  });
   
   const transactions = [];
-  if (transRaw.length > 1) {
-    for (let i = 1; i < transRaw.length; i++) {
-      try {
-        transactions.push({
-          id: String(transRaw[i][0]),
-          date: transRaw[i][1] instanceof Date ? Utilities.formatDate(transRaw[i][1], Session.getScriptTimeZone(), 'yyyy-MM-dd') : transRaw[i][1],
-          debits: JSON.parse(transRaw[i][2]),
-          credits: JSON.parse(transRaw[i][3]),
-          memo: transRaw[i][4],
-          vendor: transRaw[i][5] || ''
-        });
-      } catch (e) { console.error("Data parse error", e); }
-    }
+  for (let i = 0; i < transRaw.length; i++) {
+    try {
+      const row = transRaw[i];
+      if (!row[0]) continue;
+      transactions.push({
+        id: String(row[0]),
+        date: row[1] instanceof Date ? Utilities.formatDate(row[1], tz, 'yyyy-MM-dd') : row[1],
+        debits: JSON.parse(row[2]),
+        credits: JSON.parse(row[3]),
+        memo: row[4],
+        vendor: row[5] || ''
+      });
+    } catch (e) { console.error("Data parse error", e); }
   }
 
-  // Check and automatically carry over budgets
-  const budgets = ensureBudgets();
+  const budgets = ensureBudgets(ss, tz);
 
   return { initialSetup, accounts, transactions, budgets };
 }
 
-
 function saveTransaction(tx) {
+  if (!validateTransaction_(tx)) return false;
   var lock = LockService.getScriptLock();
+  var hasLock = false;
   try {
     lock.waitLock(10000);
+    hasLock = true;
     const sheet = getSheet('Transactions');
-    const data = sheet.getDataRange().getValues();
-    
-    let rowIndex = -1;
-    for (let i = 1; i < data.length; i++) {
-      if (String(data[i][0]) === String(tx.id)) {
-        rowIndex = i + 1;
-        break;
-      }
-    }
-    
-    const rowData = [
-      tx.id,
-      tx.date,
-      JSON.stringify(tx.debits),
-      JSON.stringify(tx.credits),
-      tx.memo,
-      tx.vendor || ''
-    ];
+    const rowIndex = findTransactionRow_(sheet, tx.id);
+    const rowData = toTransactionRow_(tx);
     
     if (rowIndex > -1) {
       sheet.getRange(rowIndex, 1, 1, 6).setValues([rowData]);
@@ -97,38 +132,90 @@ function saveTransaction(tx) {
     }
     return true;
   } catch (e) {
+    console.error("saveTransaction error:", e);
     return false;
   } finally {
-    lock.releaseLock();
+    if (hasLock) lock.releaseLock();
+  }
+}
+
+function saveTransactionsBatch(txList) {
+  if (!Array.isArray(txList) || txList.length === 0) return true;
+  for (var k = 0; k < txList.length; k++) {
+    if (!validateTransaction_(txList[k])) return false;
+  }
+
+  var lock = LockService.getScriptLock();
+  var hasLock = false;
+  try {
+    lock.waitLock(15000);
+    hasLock = true;
+    const sheet = getSheet('Transactions');
+    const lastRow = sheet.getLastRow();
+    const idMap = {};
+
+    if (lastRow > 1) {
+      const idValues = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (let i = 0; i < idValues.length; i++) {
+        const existingId = String(idValues[i][0]);
+        if (existingId) idMap[existingId] = i + 2;
+      }
+    }
+
+    const rowsToAppend = [];
+    for (let j = 0; j < txList.length; j++) {
+      const tx = txList[j];
+      const rowData = toTransactionRow_(tx);
+      const existingRow = idMap[String(tx.id)];
+      if (existingRow) {
+        sheet.getRange(existingRow, 1, 1, 6).setValues([rowData]);
+      } else {
+        rowsToAppend.push(rowData);
+      }
+    }
+
+    if (rowsToAppend.length > 0) {
+      const appendStartRow = sheet.getLastRow() + 1;
+      sheet.getRange(appendStartRow, 1, rowsToAppend.length, 6).setValues(rowsToAppend);
+    }
+    return true;
+  } catch (e) {
+    console.error("saveTransactionsBatch error:", e);
+    return false;
+  } finally {
+    if (hasLock) lock.releaseLock();
   }
 }
 
 function deleteTransaction(id) {
   var lock = LockService.getScriptLock();
+  var hasLock = false;
   try {
     lock.waitLock(10000);
+    hasLock = true;
     const sheet = getSheet('Transactions');
-    const data = sheet.getDataRange().getValues();
-    for (let i = 1; i < data.length; i++) {
-      if (String(data[i][0]) === String(id)) {
-        sheet.deleteRow(i + 1);
-        return true;
-      }
+    const rowIndex = findTransactionRow_(sheet, id);
+    if (rowIndex > -1) {
+      sheet.deleteRow(rowIndex);
+      return true;
     }
     return false;
   } catch (e) {
+    console.error("deleteTransaction error:", e);
     return false;
   } finally {
-    lock.releaseLock();
+    if (hasLock) lock.releaseLock();
   }
 }
 
 function saveSettings(settingsData) {
   var lock = LockService.getScriptLock();
+  var hasLock = false;
   try {
     lock.waitLock(10000);
+    hasLock = true;
     const sheet = getSheet('Settings');
-    sheet.clear();
+    sheet.clearContents();
     const data = [
       ['key', 'value'],
       ['initialSetup', JSON.stringify(settingsData.initialSetup)],
@@ -139,29 +226,32 @@ function saveSettings(settingsData) {
   } catch (e) {
     return false;
   } finally {
-    lock.releaseLock();
+    if (hasLock) lock.releaseLock();
   }
 }
 
 function saveBudget(month, budgetData) {
   var lock = LockService.getScriptLock();
+  var hasLock = false;
   try {
     lock.waitLock(10000);
+    hasLock = true;
     const sheet = getSheet('Budgets');
-    const data = sheet.getDataRange().getValues();
+    const tz = Session.getScriptTimeZone();
+    const lastRow = sheet.getLastRow();
     const targetMonthStr = String(month).trim();
     const matchingRows = [];
     
-    for (let i = 1; i < data.length; i++) {
-      let mVal = data[i][0];
-      let mStr = '';
-      if (mVal instanceof Date) {
-        mStr = Utilities.formatDate(mVal, Session.getScriptTimeZone(), 'yyyy-MM');
-      } else {
-        mStr = String(mVal).trim();
-      }
-      if (mStr === targetMonthStr) {
-        matchingRows.push(i + 1);
+    if (lastRow > 1) {
+      const monthValues = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (let i = 0; i < monthValues.length; i++) {
+        let mVal = monthValues[i][0];
+        let mStr = mVal instanceof Date
+          ? Utilities.formatDate(mVal, tz, 'yyyy-MM')
+          : String(mVal).trim();
+        if (mStr === targetMonthStr) {
+          matchingRows.push(i + 2);
+        }
       }
     }
     
@@ -181,21 +271,23 @@ function saveBudget(month, budgetData) {
     console.error("saveBudget error:", e);
     return false;
   } finally {
-    lock.releaseLock();
+    if (hasLock) lock.releaseLock();
   }
 }
 
-function ensureBudgets() {
-  const sheet = getSheet('Budgets');
-  const rawData = sheet.getDataRange().getValues();
+function ensureBudgets(ssInstance, tzInstance) {
+  const sheet = getSheet('Budgets', ssInstance);
+  const tz = tzInstance || Session.getScriptTimeZone();
+  const lastRow = sheet.getLastRow();
   const budgets = {};
   
-  if (rawData.length > 1) {
-    for (let i = 1; i < rawData.length; i++) {
+  if (lastRow > 1) {
+    const rawData = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+    for (let i = 0; i < rawData.length; i++) {
       try {
         let mKey = rawData[i][0];
         if (mKey instanceof Date) {
-          mKey = Utilities.formatDate(mKey, Session.getScriptTimeZone(), 'yyyy-MM');
+          mKey = Utilities.formatDate(mKey, tz, 'yyyy-MM');
         } else {
           mKey = String(mKey).trim();
         }
